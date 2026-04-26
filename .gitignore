@@ -36,6 +36,7 @@ tfx_pipeline_output/
 *.db
 
 # Data files
+ml-100k/
 data/
 *.csv
 *.tfrecord

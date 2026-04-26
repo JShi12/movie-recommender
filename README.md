@@ -1,103 +1,37 @@
 # TFX MovieLens Recommender Pipeline
 
-Production-style TFX pipeline for predicting whether a user likes a movie (rating ≥ 4) using the MovieLens 100k dataset.
+Production-style TFX pipeline for predicting user movie preferences using the MovieLens 100k dataset.
 
-## 🎯 Project Overview
+## Project Overview
 
-**Architecture**: Two-tower dot product model with embedding-based features
-- **User Tower**: user_id + age + gender + occupation → embeddings → Dense(64) → user_vector
-- **Movie Tower**: movie_id + genres → embeddings → Dense(64) → movie_vector
-- **Interaction**: dot_product(user_vector, movie_vector) → sigmoid → prediction
+Two-tower dot product model with embedding-based features for users and movies.
 
-**Key Features**:
-- ✅ Time-based split (70/15/15 chronological) - prevents temporal leakage
-- ✅ Pure embedding approach for all categorical features
-- ✅ ROC-AUC evaluation with multi-threshold analysis
-- ✅ Kubeflow Pipelines for production orchestration
-- ✅ Complete TFX pipeline (8 components)
-
-## 📋 Prerequisites
+## Prerequisites
 
 - Python 3.9 or higher
 - pip package manager
-- (Optional) Kubeflow Pipelines cluster for production deployment
+- (Optional) Kubeflow Pipelines cluster
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Clone or Setup Project
+1. Setup environment: Run setup_env.bat (Windows) or setup_env.sh (Linux/Mac)
+2. Install dependencies: pip install -r requirements.txt
+3. Launch notebook: jupyter notebook tfx_pipeline.ipynb
 
-```bash
-cd "c:\Users\jings\_ML projects\TFX recommender"
-```
-
-### 2. Create Virtual Environment
-
-**Windows:**
-```cmd
-setup_env.bat
-```
-
-**Linux/Mac:**
-```bash
-chmod +x setup_env.sh
-./setup_env.sh
-```
-
-**Manual Setup:**
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Activate (Linux/Mac)
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Verify Installation
-
-```python
-python -c "import tfx; print(f'TFX version: {tfx.__version__}')"
-python -c "import tensorflow as tf; print(f'TensorFlow version: {tf.__version__}')"
-```
-
-### 4. Launch Jupyter Notebook
-
-```bash
-jupyter notebook tfx_pipeline.ipynb
-```
-
-## 📂 Project Structure
+## Project Structure
 
 ```
 TFX recommender/
 ├── ml-100k/                    # MovieLens 100k dataset
-│   ├── u.data                 # Ratings (100k interactions)
-│   ├── u.user                 # User demographics
-│   ├── u.item                 # Movie metadata
-│   └── README                 # Dataset documentation
-│
 ├── tfx_pipeline.ipynb         # Main pipeline notebook
-├── transform_module.py        # TFX preprocessing (auto-generated)
-├── trainer_module.py          # Model definition (auto-generated)
-│
-├── data/                      # Processed data (generated)
-│   ├── train.csv             # 70% earliest interactions
-│   ├── val.csv               # 15% middle interactions
-│   └── test.csv              # 15% most recent interactions
-│
-├── tfx_pipeline_output/      # Pipeline artifacts (generated)
-│   ├── metadata.sqlite       # TFX metadata database
-│   └── serving_model/        # Exported model
-│
+├── transform_module.py        # TFX preprocessing
+├── trainer_module.py          # Model definition
+├── data/                      # Processed data
+├── tfx_pipeline_output/      # Pipeline artifacts
 ├── requirements.txt          # Python dependencies
 ├── setup_env.bat            # Windows setup script
-├── setup_env.sh             # Linux/Mac setup script
-├── .gitignore               # Git ignore rules
+└── setup_env.sh             # Linux/Mac setup script
+```
 └── README.md                # This file
 ```
 
