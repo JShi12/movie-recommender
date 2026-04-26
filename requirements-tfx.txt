@@ -1,0 +1,52 @@
+# Full TFX Requirements - Python 3.9 or 3.10 ONLY
+# Use this if you have Python 3.9 or 3.10 installed
+
+# Core TFX and TensorFlow
+tfx==1.14.0
+tensorflow==2.13.0
+tensorflow-transform==1.14.0
+tensorflow-model-analysis==0.45.0
+tensorflow-data-validation==1.14.0
+tensorflow-metadata==1.14.0
+tfx-bsl==1.14.0
+ml-metadata==1.14.0
+ml-pipelines-sdk==1.14.0
+tensorflow-serving-api==2.13.0
+apache-beam==2.47.0
+
+# Kubeflow Pipelines
+kfp==1.8.22
+google-apitools==0.5.31
+google-cloud-aiplatform==1.36.4
+google-cloud-bigquery==2.34.4
+keras-tuner==1.4.7
+tensorflow-hub==0.13.0
+
+# Data processing
+pandas==1.5.3
+numpy==1.24.3
+scikit-learn==1.2.2
+scipy==1.10.1
+
+# Visualization
+matplotlib==3.7.1
+seaborn==0.12.2
+pillow==10.4.0
+
+# Notebook kernel only
+ipython==7.34.0
+ipywidgets==7.8.5
+ipykernel==6.22.0
+
+# Utilities
+pyarrow==10.0.1
+attrs==21.4.0
+packaging==20.9
+kubernetes==12.0.1
+setuptools==68.2.2
+wheel==0.41.3
+
+# Development tools (optional)
+pytest>=7.2.0
+black>=23.0.0
+flake8>=6.0.0
