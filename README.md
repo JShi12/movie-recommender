@@ -35,7 +35,7 @@ TFX recommender/
 └── README.md                # This file
 ```
 
-## 🔧 Pipeline Components
+## Pipeline Components
 
 1. **CsvExampleGen**: Ingest CSV data with time-based splits
 2. **StatisticsGen**: Generate data statistics for analysis
@@ -46,7 +46,7 @@ TFX recommender/
 7. **Evaluator**: ROC-AUC + threshold-based metrics (0.3, 0.5, 0.7)
 8. **Pusher**: Deploy model to serving directory
 
-## 📊 Expected Performance
+## Expected Performance
 
 **Baseline Targets**:
 - ROC-AUC: > 0.70
