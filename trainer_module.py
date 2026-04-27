@@ -19,7 +19,7 @@ AGE_BUCKETS = 6
 # Embedding dimensions
 USER_EMBEDDING_DIM = 32
 MOVIE_EMBEDDING_DIM = 32
-AGE_EMBEDDING_DIM = 6
+AGE_EMBEDDING_DIM = 8
 GENDER_EMBEDDING_DIM = 4
 OCCUPATION_EMBEDDING_DIM = 12
 GENRE_EMBEDDING_DIM = 12
@@ -238,7 +238,7 @@ def build_two_tower_model(
     )
 
     model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=0.0005),
+        optimizer=keras.optimizers.Adam(learning_rate=0.001),
         loss='binary_crossentropy',
         metrics=[
             'accuracy',

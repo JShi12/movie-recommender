@@ -38,16 +38,16 @@ def preprocessing_fn(inputs):
     )
     
     # Age: Bucketize into 6 bins (quantile boundaries)
-    # outputs[AGE_KEY] = tft.bucketize(
-    #     inputs[AGE_KEY],
-    #     num_buckets=6,
-    #     epsilon=0.01
-    # )
-    # Age: fixed buckets
-    outputs[AGE_KEY] = tft.apply_buckets(
+    outputs[AGE_KEY] = tft.bucketize(
         inputs[AGE_KEY],
-        bucket_boundaries=[[18, 25, 35, 45, 55]]
+        num_buckets=6,
+        epsilon=0.01
     )
+    # Age: fixed buckets
+    # outputs[AGE_KEY] = tft.apply_buckets(
+    #     inputs[AGE_KEY],
+    #     bucket_boundaries=[[18, 25, 35, 45, 55]]
+    # )
     
     # Gender: Create vocabulary (M/F)
     outputs[GENDER_KEY] = tft.compute_and_apply_vocabulary(
