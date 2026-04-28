@@ -89,7 +89,10 @@ def build_model_dataframe(
     """Join raw data and return the model feature dataframe."""
     merged = ratings.merge(users, on="user_id", how="left")
     merged = merged.merge(movies, on="movie_id", how="left")
-    merged["label"] = (merged["rating"] >= 4).astype(int)
+    merged = merged[merged["rating"] != config.NEUTRAL_RATING].copy()
+    merged["label"] = (
+        merged["rating"] >= config.POSITIVE_RATING_THRESHOLD
+    ).astype(int)
     merged["genres"] = merged.apply(_active_genres, axis=1)
 
     feature_cols = [
