@@ -42,9 +42,7 @@ OCCUPATION_EMBEDDING_DIM = _config_value('OCCUPATION_EMBEDDING_DIM', 12)
 GENRE_EMBEDDING_DIM = _config_value('GENRE_EMBEDDING_DIM', 12)
 FINAL_EMBEDDING_DIM = _config_value('FINAL_EMBEDDING_DIM', 32)
 
-# Trainer custom_config key.
-USE_USER_AWARE_ATTENTION_KEY = 'use_user_aware_attention'
-DEFAULT_USE_USER_AWARE_ATTENTION = _config_value('USE_USER_AWARE_ATTENTION', False)
+# Trainer custom_config keys.
 BATCH_SIZE_KEY = 'batch_size'
 EPOCHS_KEY = 'epochs'
 EARLY_STOPPING_PATIENCE_KEY = 'early_stopping_patience'
@@ -58,56 +56,6 @@ GENDER_EMBEDDING_DIM_KEY = 'gender_embedding_dim'
 OCCUPATION_EMBEDDING_DIM_KEY = 'occupation_embedding_dim'
 GENRE_EMBEDDING_DIM_KEY = 'genre_embedding_dim'
 FINAL_EMBEDDING_DIM_KEY = 'final_embedding_dim'
-
-
-class UserAwareAttention(tf.keras.layers.Layer):
-    """Attend over a movie's genre embeddings using the current user vector."""
-
-    def call(self, inputs):
-        user_vector, genre_embeddings = inputs
-
-        if isinstance(genre_embeddings, tf.RaggedTensor):
-            row_lengths = genre_embeddings.row_lengths()
-            genre_embeddings = genre_embeddings.to_tensor()
-            mask = tf.sequence_mask(row_lengths, maxlen=tf.shape(genre_embeddings)[1])
-        else:
-            mask = None
-
-        # (batch, 1, d)
-        user_expanded = tf.expand_dims(user_vector, axis=1)
-
-        # (batch, num_genres)
-        scores = tf.reduce_sum(user_expanded * genre_embeddings, axis=-1)
-
-        if mask is not None:
-            scores = tf.where(
-                mask,
-                scores,
-                tf.fill(tf.shape(scores), tf.cast(-1e9, scores.dtype)),
-            )
-
-        # (batch, num_genres)
-        weights = tf.nn.softmax(scores, axis=1)
-
-        if mask is not None:
-            weights = tf.where(mask, weights, tf.zeros_like(weights))
-
-        # (batch, num_genres, 1)
-        weights = tf.expand_dims(weights, axis=-1)
-
-        # (batch, d)
-        return tf.reduce_sum(weights * genre_embeddings, axis=1)
-
-
-def _as_bool(value, default=False):
-    """Parse bool-like trainer custom_config values."""
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() in {'1', 'true', 'yes', 'y', 'on'}
-    return bool(value)
 
 
 def _as_int(value, default):
@@ -146,7 +94,6 @@ def build_two_tower_model(
     gender_vocab_size,
     occupation_vocab_size,
     genre_vocab_size,
-    use_user_aware_attention=DEFAULT_USE_USER_AWARE_ATTENTION,
     user_embedding_dim=USER_EMBEDDING_DIM,
     movie_embedding_dim=MOVIE_EMBEDDING_DIM,
     age_embedding_dim=AGE_EMBEDDING_DIM,
@@ -219,7 +166,10 @@ def build_two_tower_model(
         activation='relu',
         name='user_tower',
     )(user_features)
-    user_vector = layers.LayerNormalization()(user_vector)
+    user_vector = layers.Lambda(
+        lambda x: tf.nn.l2_normalize(x, axis=1),
+        name='user_embedding_output',
+    )(user_vector)
 
     # ===== MOVIE TOWER =====
     movie_embedding = layers.Embedding(
@@ -243,24 +193,13 @@ def build_two_tower_model(
         embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization)
     )(genre_ragged)
 
-    if use_user_aware_attention:
-        genre_attention_query = layers.Dense(
-            genre_embedding_dim,
-            activation=None,
-            name='genre_attention_query',
-        )(user_vector)
-
-        genre_features = UserAwareAttention(
-            name='user_aware_genre_attention',
-        )([genre_attention_query, genre_embeddings])
-    else:
-        genre_features = layers.Lambda(
-            lambda x: tf.math.divide_no_nan(
-                tf.reduce_sum(x, axis=1),
-                tf.cast(tf.expand_dims(x.row_lengths(), axis=1), x.dtype),
-            ),
-            name='genre_average_pooling',
-        )(genre_embeddings)
+    genre_features = layers.Lambda(
+        lambda x: tf.math.divide_no_nan(
+            tf.reduce_sum(x, axis=1),
+            tf.cast(tf.expand_dims(x.row_lengths(), axis=1), x.dtype),
+        ),
+        name='genre_average_pooling',
+    )(genre_embeddings)
 
     movie_features = layers.Concatenate()([movie_embedding, genre_features])
     movie_features = layers.Dropout(dropout_rate)(movie_features)
@@ -270,11 +209,18 @@ def build_two_tower_model(
         activation='relu',
         name='movie_tower',
     )(movie_features)
-    movie_vector = layers.LayerNormalization()(movie_vector)
+    movie_vector = layers.Lambda(
+        lambda x: tf.nn.l2_normalize(x, axis=1),
+        name='movie_embedding_output',
+    )(movie_vector)
 
     # ===== INTERACTION: DOT PRODUCT =====
     dot_product = layers.Dot(axes=1, name='dot_product')([user_vector, movie_vector])
-    output = layers.Activation('sigmoid', name='output')(dot_product)
+    scaled_dot_product = layers.Lambda(
+        lambda x: x * 5.0,
+        name='scaled_dot_product',
+    )(dot_product)
+    output = layers.Activation('sigmoid', name='output')(scaled_dot_product)
 
     model = keras.Model(
         inputs={
@@ -288,14 +234,30 @@ def build_two_tower_model(
         outputs=output,
         name='two_tower_recommender',
     )
+    model.user_embedding_model = keras.Model(
+        inputs={
+            USER_ID_KEY: user_id_input,
+            AGE_KEY: age_input,
+            GENDER_KEY: gender_input,
+            OCCUPATION_KEY: occupation_input,
+        },
+        outputs=user_vector,
+        name='user_embedding_model',
+    )
+    model.movie_embedding_model = keras.Model(
+        inputs={
+            MOVIE_ID_KEY: movie_id_input,
+            GENRES_KEY: genres_input,
+        },
+        outputs=movie_vector,
+        name='movie_embedding_model',
+    )
 
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
         loss='binary_crossentropy',
         metrics=[
-            'accuracy',
             keras.metrics.AUC(name='auc'),
-            keras.metrics.Precision(name='precision'),
             keras.metrics.Recall(name='recall'),
         ],
     )
@@ -308,10 +270,6 @@ def run_fn(fn_args: FnArgs):
 
     tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
     custom_config = getattr(fn_args, 'custom_config', None) or {}
-    use_user_aware_attention = _as_bool(
-        custom_config.get(USE_USER_AWARE_ATTENTION_KEY),
-        default=DEFAULT_USE_USER_AWARE_ATTENTION,
-    )
     batch_size = _as_int(custom_config.get(BATCH_SIZE_KEY), BATCH_SIZE)
     epochs = _as_int(custom_config.get(EPOCHS_KEY), EPOCHS)
     early_stopping_patience = _as_int(
@@ -376,7 +334,6 @@ def run_fn(fn_args: FnArgs):
         gender_vocab_size=gender_vocab_size,
         occupation_vocab_size=occupation_vocab_size,
         genre_vocab_size=genre_vocab_size,
-        use_user_aware_attention=use_user_aware_attention,
         user_embedding_dim=user_embedding_dim,
         movie_embedding_dim=movie_embedding_dim,
         age_embedding_dim=age_embedding_dim,
@@ -392,7 +349,7 @@ def run_fn(fn_args: FnArgs):
     print('=' * 80)
     print('MODEL ARCHITECTURE')
     print('=' * 80)
-    print(f'Genre pooling mode: {"user-aware attention" if use_user_aware_attention else "average pooling"}')
+    print('Genre pooling mode: average pooling')
     print(
         'Hyperparameters: '
         f'batch_size={batch_size}, epochs={epochs}, learning_rate={learning_rate}, '
@@ -415,30 +372,87 @@ def run_fn(fn_args: FnArgs):
                 restore_best_weights=True,
                 mode='max',
             ),
+            keras.callbacks.ReduceLROnPlateau(
+                monitor='val_auc',
+                factor=0.5,
+                patience=1,
+                mode='max',
+                min_lr=1e-6,
+            ),
             keras.callbacks.TensorBoard(log_dir=fn_args.model_run_dir),
         ],
     )
 
     transformed_feature_spec = tf_transform_output.transformed_feature_spec().copy()
     transformed_feature_spec.pop(LABEL_KEY, None)
+    user_feature_spec = {
+        key: transformed_feature_spec[key]
+        for key in [USER_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY]
+    }
+    movie_feature_spec = {
+        key: transformed_feature_spec[key]
+        for key in [MOVIE_ID_KEY, GENRES_KEY]
+    }
 
-    # Explicit signature for TFMA: accept serialized tf.Example and parse transformed features.
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
-    def serving_default(serialized_examples):
-        parsed = tf.io.parse_example(serialized_examples, transformed_feature_spec)
+    def _parse_transformed_examples(serialized_examples, feature_spec, dense_keys):
+        parsed = tf.io.parse_example(serialized_examples, feature_spec)
 
         # Model dense inputs are shape (batch, 1); parsed scalars are shape (batch,).
-        for key in [USER_ID_KEY, MOVIE_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY]:
+        for key in dense_keys:
             value = parsed[key]
             if not isinstance(value, tf.SparseTensor):
                 parsed[key] = tf.expand_dims(tf.cast(value, tf.int64), axis=-1)
+        return parsed
+
+    # Explicit signatures accept serialized transformed tf.Example payloads.
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
+    def serving_default(serialized_examples):
+        parsed = _parse_transformed_examples(
+            serialized_examples,
+            transformed_feature_spec,
+            [USER_ID_KEY, MOVIE_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY],
+        )
 
         outputs = model(parsed, training=False)
         return {'outputs': outputs}
 
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
+    def user_embedding(serialized_examples):
+        parsed = _parse_transformed_examples(
+            serialized_examples,
+            user_feature_spec,
+            [USER_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY],
+        )
+        user_inputs = {
+            USER_ID_KEY: parsed[USER_ID_KEY],
+            AGE_KEY: parsed[AGE_KEY],
+            GENDER_KEY: parsed[GENDER_KEY],
+            OCCUPATION_KEY: parsed[OCCUPATION_KEY],
+        }
+        outputs = model.user_embedding_model(user_inputs, training=False)
+        return {'user_embedding': outputs}
+
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
+    def movie_embedding(serialized_examples):
+        parsed = _parse_transformed_examples(
+            serialized_examples,
+            movie_feature_spec,
+            [MOVIE_ID_KEY],
+        )
+        movie_inputs = {
+            MOVIE_ID_KEY: parsed[MOVIE_ID_KEY],
+            GENRES_KEY: parsed[GENRES_KEY],
+        }
+        outputs = model.movie_embedding_model(movie_inputs, training=False)
+        return {'movie_embedding': outputs}
+
     tf.saved_model.save(
         model,
         fn_args.serving_model_dir,
-        signatures={'serving_default': serving_default},
+        signatures={
+            'serving_default': serving_default,
+            'user_embedding': user_embedding,
+            'movie_embedding': movie_embedding,
+        },
     )
     print(f'Model saved to {fn_args.serving_model_dir}')

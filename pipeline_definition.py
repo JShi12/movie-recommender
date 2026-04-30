@@ -76,13 +76,9 @@ def create_pipeline(
     metadata_path: str | Path = config.METADATA_PATH,
     train_steps: int = config.TRAIN_STEPS,
     eval_steps: int = config.EVAL_STEPS,
-    use_user_aware_attention: bool = config.USE_USER_AWARE_ATTENTION,
 ) -> pipeline.Pipeline:
     """Create the full TFX pipeline."""
-    trainer_custom_config = {
-        **config.TRAINER_HYPERPARAMETERS,
-        "use_user_aware_attention": use_user_aware_attention,
-    }
+    trainer_custom_config = dict(config.TRAINER_HYPERPARAMETERS)
 
     example_gen = CsvExampleGen(
         input_base=str(data_root),

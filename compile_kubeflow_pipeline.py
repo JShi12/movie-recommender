@@ -27,15 +27,6 @@ def looks_like_placeholder_gcs(path: str) -> bool:
     return path.startswith("gs://") and "your-bucket" in path
 
 
-def parse_bool(value: str) -> bool:
-    value = value.strip().lower()
-    if value in {"1", "true", "yes", "y", "on"}:
-        return True
-    if value in {"0", "false", "no", "n", "off"}:
-        return False
-    raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-file", type=Path, default=config.KUBEFLOW_PIPELINE_FILE)
@@ -49,11 +40,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--trainer-module", type=Path, default=config.TRAINER_MODULE_FILE)
     parser.add_argument("--train-steps", type=int, default=config.TRAIN_STEPS)
     parser.add_argument("--eval-steps", type=int, default=config.EVAL_STEPS)
-    parser.add_argument(
-        "--use-user-aware-attention",
-        type=parse_bool,
-        default=config.USE_USER_AWARE_ATTENTION,
-    )
     return parser.parse_args()
 
 
@@ -78,7 +64,6 @@ def main() -> None:
         metadata_path=args.metadata_path,
         train_steps=args.train_steps,
         eval_steps=args.eval_steps,
-        use_user_aware_attention=args.use_user_aware_attention,
     )
 
     runner_config = KubeflowDagRunnerConfig(

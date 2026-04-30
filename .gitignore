@@ -32,6 +32,7 @@ ENV/
 
 # TFX Pipeline Artifacts
 tfx_pipeline_output/
+tfx_pipeline_output_*/
 *.sqlite
 *.db
 
@@ -42,6 +43,7 @@ data/
 *.tfrecord
 
 # Model artifacts
+artifacts/
 models/
 serving_model/
 saved_models/
