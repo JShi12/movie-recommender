@@ -27,7 +27,8 @@ from ranking.feature_builder import (
     movie_feature_table,
     user_feature_table,
 )
-from ranking.prepare_ranking_data import fill_weak_historical_features
+from ranking.prepare_ranking_data import fill_candidate_historical_features
+from ranking.prepare_ranking_data import candidate_request_times
 from retrieval_candidates import generate_top_k_candidates
 
 
@@ -83,12 +84,7 @@ def build_end_to_end_candidate_features(
             ~candidates[["user_id", "movie_id"]].apply(tuple, axis=1).isin(seen_pairs)
         ].copy()
 
-    eval_times = (
-        target.groupby("user_id")["timestamp"]
-        .min()
-        .reset_index()
-        .rename(columns={"timestamp": "candidate_timestamp"})
-    )
+    eval_times = candidate_request_times(target, history)
     frame = candidates.merge(eval_times, on="user_id", how="inner")
     frame = frame.merge(movies, on="movie_id", how="left")
     frame = frame.merge(users, on="user_id", how="left")
@@ -103,7 +99,7 @@ def build_end_to_end_candidate_features(
     )
     frame = frame.drop(columns=["candidate_timestamp"])
 
-    frame = fill_weak_historical_features(frame, history)
+    frame = fill_candidate_historical_features(frame, history)
     frame = finalize_features(frame, history)
     frame = add_retrieval_embedding_features(frame, batch_size=batch_size)
     return frame, positives

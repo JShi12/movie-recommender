@@ -30,7 +30,7 @@ def group_counts(frame: pd.DataFrame) -> list[int]:
 
 
 def sorted_for_ranking(frame: pd.DataFrame) -> pd.DataFrame:
-    return frame.sort_values(["user_id", "label", "candidate_score"], ascending=[True, False, False])
+    return frame.sort_values(["user_id", "candidate_score"], ascending=[True, False])
 
 
 def train_ranker(
@@ -47,10 +47,20 @@ def train_ranker(
         train["label"],
         group=group_counts(train),
         sample_weight=train["sample_weight"],
-        eval_set=[(val[RANKING_FEATURES], val["label"])],
-        eval_group=[group_counts(val)],
-        eval_sample_weight=[val["sample_weight"]],
-        eval_at=[10, 20, 100],
+        eval_set=[
+            (train[RANKING_FEATURES], train["label"]),
+            (val[RANKING_FEATURES], val["label"]),
+        ],
+        eval_names=["train", "validation"],
+        eval_group=[
+            group_counts(train),
+            group_counts(val),
+        ],
+        eval_sample_weight=[
+            train["sample_weight"],
+            val["sample_weight"],
+        ],
+        eval_at=[10, 20],
         callbacks=[
             lgb.early_stopping(stopping_rounds=50),
             lgb.log_evaluation(period=25),

@@ -26,9 +26,10 @@ def evaluate_ranker(
     frame = pd.read_parquet(data_path).sort_values("user_id")
     booster = lgb.Booster(model_file=str(model_file))
     frame["ranker_score"] = booster.predict(frame[RANKING_FEATURES])
+    binary_label = (frame["label"] > 0).astype(int)
 
     metrics = {
-        "auc": float(roc_auc_score(frame["label"], frame["ranker_score"])),
+        "auc": float(roc_auc_score(binary_label, frame["ranker_score"])),
     }
     for k in (10, 20, 100):
         ndcgs = []

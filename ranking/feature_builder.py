@@ -20,8 +20,16 @@ MOVIE_RETRIEVAL_VECTOR_FEATURES = [
     f"movie_retrieval_vector_{idx:02d}"
     for idx in range(project_config.FINAL_EMBEDDING_DIM)
 ]
+RETRIEVAL_VECTOR_PRODUCT_FEATURES = [
+    f"retrieval_vector_product_{idx:02d}"
+    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+]
+RETRIEVAL_VECTOR_ABS_DIFF_FEATURES = [
+    f"retrieval_vector_abs_diff_{idx:02d}"
+    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+]
 
-RANKING_FEATURES = [
+BASE_RANKING_FEATURES = [
     "candidate_score",
     "retrieval_rank",
     "user_avg_rating_before",
@@ -37,7 +45,15 @@ RANKING_FEATURES = [
     "day_of_week",
     "user_avg_minus_movie_avg",
     "user_genre_affinity",
-] + [f"genre_{genre}" for genre in GENRE_COLUMNS] + USER_RETRIEVAL_VECTOR_FEATURES + MOVIE_RETRIEVAL_VECTOR_FEATURES
+] + [f"genre_{genre}" for genre in GENRE_COLUMNS]
+
+RANKING_FEATURES = (
+    BASE_RANKING_FEATURES
+    + USER_RETRIEVAL_VECTOR_FEATURES
+    + MOVIE_RETRIEVAL_VECTOR_FEATURES
+    + RETRIEVAL_VECTOR_PRODUCT_FEATURES
+    + RETRIEVAL_VECTOR_ABS_DIFF_FEATURES
+)
 
 
 def load_joined_movielens(raw_data_dir: Path = project_config.RAW_DATA_DIR) -> pd.DataFrame:
@@ -153,11 +169,11 @@ def finalize_features(frame: pd.DataFrame, history: pd.DataFrame) -> pd.DataFram
     frame["user_avg_minus_movie_avg"] = (
         frame["user_avg_rating_before"] - frame["movie_avg_rating_before"]
     )
-    for feature in RANKING_FEATURES:
+    for feature in BASE_RANKING_FEATURES:
         if feature not in frame.columns:
             frame[feature] = 0.0
-    frame[RANKING_FEATURES] = frame[RANKING_FEATURES].replace([np.inf, -np.inf], np.nan)
-    frame[RANKING_FEATURES] = frame[RANKING_FEATURES].fillna(0.0)
+    frame[BASE_RANKING_FEATURES] = frame[BASE_RANKING_FEATURES].replace([np.inf, -np.inf], np.nan)
+    frame[BASE_RANKING_FEATURES] = frame[BASE_RANKING_FEATURES].fillna(0.0)
     return frame
 
 
@@ -183,9 +199,25 @@ def add_retrieval_embedding_features(
             f"expected={expected_width}"
         )
 
-    frame[USER_RETRIEVAL_VECTOR_FEATURES] = user_array
-    frame[MOVIE_RETRIEVAL_VECTOR_FEATURES] = movie_array
-    return frame
+    retrieval_features = pd.DataFrame(
+        np.hstack(
+            [
+                user_array,
+                movie_array,
+                user_array * movie_array,
+                np.abs(user_array - movie_array),
+            ]
+        ),
+        columns=(
+            USER_RETRIEVAL_VECTOR_FEATURES
+            + MOVIE_RETRIEVAL_VECTOR_FEATURES
+            + RETRIEVAL_VECTOR_PRODUCT_FEATURES
+            + RETRIEVAL_VECTOR_ABS_DIFF_FEATURES
+        ),
+        index=frame.index,
+    )
+    frame = frame.drop(columns=retrieval_features.columns, errors="ignore")
+    return pd.concat([frame, retrieval_features], axis=1)
 
 
 def ndcg_at_k(labels: list[float], scores: list[float], k: int) -> float:

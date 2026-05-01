@@ -1,4 +1,4 @@
-"""Prepare balanced top-K candidate datasets for LightGBM ranking."""
+"""Prepare retrieval-candidate datasets for LightGBM ranking."""
 
 from __future__ import annotations
 
@@ -28,143 +28,105 @@ from retrieval_candidates import generate_top_k_candidates
 
 
 def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    labelled = raw[raw["label"].notna()].copy()
+    labelled = raw[raw["rating"].notna()].copy()
     return time_based_split(
         labelled,
         SplitFractions(project_config.TRAIN_FRACTION, project_config.VALIDATION_FRACTION),
     )
 
 
-def add_known_candidate_scores(observed: pd.DataFrame, candidates: pd.DataFrame) -> pd.DataFrame:
-    frame = observed.copy()
-    if "candidate_score" not in frame.columns:
-        frame["candidate_score"] = np.nan
-    if "retrieval_rank" not in frame.columns:
-        frame["retrieval_rank"] = np.nan
-    candidate_scores = candidates.rename(
-        columns={
-            "candidate_score": "retrieval_candidate_score",
-            "retrieval_rank": "candidate_retrieval_rank",
-        }
+def rating_to_relevance(rating: pd.Series) -> pd.Series:
+    return pd.Series(
+        np.select(
+            [rating >= 5, rating == 4, rating == 3],
+            [3, 2, 1],
+            default=0,
+        ),
+        index=rating.index,
+        name=rating.name,
     )
-    frame = frame.merge(candidate_scores, on=["user_id", "movie_id"], how="left")
-    frame["candidate_score"] = frame["candidate_score"].fillna(
-        frame["retrieval_candidate_score"]
-    )
-    frame["candidate_score"] = frame["candidate_score"].fillna(0.0)
-    if "candidate_retrieval_rank" in frame.columns:
-        frame["retrieval_rank"] = frame["retrieval_rank"].fillna(
-            frame["candidate_retrieval_rank"]
-        )
-    frame["retrieval_rank"] = frame["retrieval_rank"].fillna(0.0)
-    frame = frame.drop(
-        columns=[
-            col
-            for col in ["retrieval_candidate_score", "candidate_retrieval_rank"]
-            if col in frame.columns
-        ]
-    )
-    return frame
 
 
-def weak_negative_rows(
-    observed_split: pd.DataFrame,
-    candidates: pd.DataFrame,
-    all_observed_pairs: set[tuple[int, int]],
-    movies: pd.DataFrame,
-    users: pd.DataFrame,
-    n_rows: int,
-    rng: np.random.Generator,
-) -> pd.DataFrame:
-    if n_rows <= 0:
-        return pd.DataFrame()
+def rating_to_label_source(rating: pd.Series) -> pd.Series:
+    return pd.Series(
+        np.select(
+            [
+                rating >= 5,
+                rating == 4,
+                rating == 3,
+                rating <= 2,
+            ],
+            ["rating_5", "rating_4", "rating_3", "observed_negative"],
+            default="unobserved",
+        ),
+        index=rating.index,
+        name=rating.name,
+    )
 
-    user_times = (
-        observed_split.groupby("user_id")["timestamp"]
+
+def candidate_request_times(target: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
+    """Use the latest available history timestamp as the candidate request time."""
+    target_start = (
+        target.groupby("user_id")["timestamp"]
+        .min()
+        .reset_index()
+        .rename(columns={"timestamp": "target_start_timestamp"})
+    )
+    history_latest = (
+        history.groupby("user_id")["timestamp"]
         .max()
         .reset_index()
-        .rename(columns={"timestamp": "candidate_timestamp"})
+        .rename(columns={"timestamp": "history_latest_timestamp"})
     )
-    pool = candidates.merge(user_times, on="user_id", how="inner")
-    pool = pool[
-        ~pool[["user_id", "movie_id"]].apply(tuple, axis=1).isin(all_observed_pairs)
-    ].copy()
-    if pool.empty:
-        return pd.DataFrame()
-
-    sampled = pool.sample(n=min(n_rows, len(pool)), random_state=int(rng.integers(0, 1_000_000)))
-    sampled = sampled.merge(movies, on="movie_id", how="left")
-    sampled = sampled.merge(users, on="user_id", how="left")
-    sampled["timestamp"] = sampled["candidate_timestamp"]
-    sampled["rating"] = np.nan
-    sampled["label"] = 0
-    sampled["sample_weight"] = ranking_config.WEAK_NEGATIVE_WEIGHT
-    sampled["label_source"] = "weak_negative"
-    return sampled.drop(columns=["candidate_timestamp"])
+    times = target_start.merge(history_latest, on="user_id", how="left")
+    times["candidate_timestamp"] = times["history_latest_timestamp"].fillna(
+        times["target_start_timestamp"]
+    )
+    return times[["user_id", "candidate_timestamp"]]
 
 
-def balance_split(
+def build_candidate_ranking_split(
     observed_split: pd.DataFrame,
-    candidates: pd.DataFrame,
-    all_observed_pairs: set[tuple[int, int]],
-    movies: pd.DataFrame,
-    users: pd.DataFrame,
-    rng: np.random.Generator,
-) -> pd.DataFrame:
-    positives = observed_split[observed_split["label"] == 1].copy()
-    strong = observed_split[observed_split["label"] == 0].copy()
-
-    target_negative_count = len(positives)
-    strong_count = min(len(strong), target_negative_count // 2)
-    weak_count = target_negative_count - strong_count
-
-    if strong_count:
-        strong = strong.sample(
-            n=strong_count,
-            random_state=int(rng.integers(0, 1_000_000)),
-        )
-    else:
-        strong = strong.iloc[0:0]
-
-    positives["sample_weight"] = ranking_config.POSITIVE_WEIGHT
-    positives["label_source"] = "positive"
-    strong["sample_weight"] = ranking_config.STRONG_NEGATIVE_WEIGHT
-    strong["label_source"] = "strong_negative"
-
-    weak = weak_negative_rows(
-        observed_split=observed_split,
-        candidates=candidates,
-        all_observed_pairs=all_observed_pairs,
-        movies=movies,
-        users=users,
-        n_rows=weak_count,
-        rng=rng,
-    )
-    frame = pd.concat([positives, strong, weak], ignore_index=True)
-    return frame.sort_values(["user_id", "timestamp", "movie_id"]).reset_index(drop=True)
-
-
-def build_ranking_split(
-    balanced: pd.DataFrame,
     history: pd.DataFrame,
     candidates: pd.DataFrame,
+    movies: pd.DataFrame,
+    users: pd.DataFrame,
 ) -> pd.DataFrame:
-    observed = balanced[balanced["label_source"] != "weak_negative"].copy()
-    weak = balanced[balanced["label_source"] == "weak_negative"].copy()
+    """Build ranking rows from the actual retrieval top-K candidate distribution."""
+    target_users = observed_split["user_id"].unique()
+    frame = candidates[candidates["user_id"].isin(target_users)].copy()
 
-    observed = add_historical_observed_features(observed)
-    weak = fill_weak_historical_features(weak, history)
+    observed_labels = observed_split[
+        ["user_id", "movie_id", "rating", "timestamp"]
+    ].rename(columns={"timestamp": "observed_timestamp"})
+    frame = frame.merge(observed_labels, on=["user_id", "movie_id"], how="left")
+    frame = frame.merge(movies, on="movie_id", how="left")
+    frame = frame.merge(users, on="user_id", how="left")
 
-    frame = pd.concat([observed, weak], ignore_index=True)
-    frame = add_known_candidate_scores(frame, candidates)
+    candidate_times = candidate_request_times(observed_split, history)
+    frame = frame.merge(candidate_times, on="user_id", how="left")
+    frame["timestamp"] = frame["observed_timestamp"].fillna(frame["candidate_timestamp"])
+    frame["label"] = rating_to_relevance(frame["rating"]).astype(int)
+    frame["label_source"] = rating_to_label_source(frame["rating"])
+    frame["sample_weight"] = np.where(
+        frame["rating"].notna(),
+        ranking_config.OBSERVED_CANDIDATE_WEIGHT,
+        ranking_config.UNOBSERVED_CANDIDATE_WEIGHT,
+    )
+    frame = frame.drop(columns=["observed_timestamp", "candidate_timestamp"])
+
+    frame = fill_candidate_historical_features(frame, history)
     frame = finalize_features(frame, history)
     frame = add_retrieval_embedding_features(frame)
-    return frame.sort_values(["user_id", "label", "candidate_score"], ascending=[True, False, False])
+    return frame.sort_values(
+        ["user_id", "candidate_score"],
+        ascending=[True, False],
+    ).reset_index(drop=True)
 
 
-def fill_weak_historical_features(weak: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
-    if weak.empty:
-        return weak
+def fill_candidate_historical_features(frame: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
     history_with_stats = add_historical_observed_features(history)
     latest_user = (
         history_with_stats.sort_values("timestamp")
@@ -192,8 +154,8 @@ def fill_weak_historical_features(weak: pd.DataFrame, history: pd.DataFrame) -> 
             ]
         ]
     )
-    weak = weak.merge(latest_user, on="user_id", how="left")
-    weak = weak.merge(latest_movie, on="movie_id", how="left")
+    frame = frame.merge(latest_user, on="user_id", how="left")
+    frame = frame.merge(latest_movie, on="movie_id", how="left")
     defaults = {
         "user_avg_rating_before": history["rating"].mean(),
         "user_rating_count_before": 0,
@@ -204,7 +166,7 @@ def fill_weak_historical_features(weak: pd.DataFrame, history: pd.DataFrame) -> 
         "movie_like_rate_before": history["label"].mean(),
         "movie_popularity_before": 0,
     }
-    return weak.fillna(defaults)
+    return frame.fillna(defaults)
 
 
 def prepare_ranking_data(
@@ -212,7 +174,6 @@ def prepare_ranking_data(
     candidates_per_user: int = ranking_config.RANKING_CANDIDATES_PER_USER,
     refresh_candidates: bool = False,
 ) -> None:
-    rng = np.random.default_rng(ranking_config.RANDOM_SEED)
     raw = load_joined_movielens()
     train, val, test = split_observed_interactions(raw)
     users = user_feature_table()
@@ -223,8 +184,11 @@ def prepare_ranking_data(
     if candidates_path.exists() and not refresh_candidates:
         print(f"Loading cached retrieval candidates: {candidates_path}")
         candidates = pd.read_parquet(candidates_path)
-        if "retrieval_rank" not in candidates.columns:
-            print("Cached candidates do not include retrieval_rank; regenerating.")
+        if (
+            "retrieval_rank" not in candidates.columns
+            or int(candidates["retrieval_rank"].max()) < candidates_per_user
+        ):
+            print("Cached candidates are missing required ranks; regenerating.")
             candidates = generate_top_k_candidates(users, movies, k=candidates_per_user)
             candidates.to_parquet(candidates_path, index=False)
     else:
@@ -232,25 +196,30 @@ def prepare_ranking_data(
         candidates = generate_top_k_candidates(users, movies, k=candidates_per_user)
         candidates.to_parquet(candidates_path, index=False)
 
-    all_observed_pairs = set(raw[["user_id", "movie_id"]].apply(tuple, axis=1))
     splits = {
         "train": (train, train),
-        "val": (val, pd.concat([train, val], ignore_index=True)),
-        "test": (test, pd.concat([train, val, test], ignore_index=True)),
+        "val": (val, train),
+        "test": (test, pd.concat([train, val], ignore_index=True)),
     }
     paths = {
-        "train": ranking_config.TRAIN_FILE,
-        "val": ranking_config.VALIDATION_FILE,
-        "test": ranking_config.TEST_FILE,
+        "train": output_dir / ranking_config.TRAIN_FILE.name,
+        "val": output_dir / ranking_config.VALIDATION_FILE.name,
+        "test": output_dir / ranking_config.TEST_FILE.name,
     }
 
     for name, (observed_split, history) in splits.items():
-        balanced = balance_split(observed_split, candidates, all_observed_pairs, movies, users, rng)
-        ranking_frame = build_ranking_split(balanced, history, candidates)
+        ranking_frame = build_candidate_ranking_split(
+            observed_split,
+            history,
+            candidates,
+            movies,
+            users,
+        )
         ranking_frame.to_parquet(paths[name], index=False)
         print(
             f"{name:<5}: {len(ranking_frame):>7,} rows, "
-            f"positives={int(ranking_frame['label'].sum()):>6,}, "
+            f"graded_label_sum={int(ranking_frame['label'].sum()):>6,}, "
+            f"observed={int(ranking_frame['rating'].notna().sum()):>6,}, "
             f"users={ranking_frame['user_id'].nunique():>4,}, path={paths[name]}"
         )
 

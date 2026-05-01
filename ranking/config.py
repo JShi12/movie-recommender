@@ -20,9 +20,8 @@ RETRIEVAL_ARTIFACT_DIR = project_config.RETRIEVAL_ARTIFACT_DIR
 RANKING_CANDIDATES_PER_USER = 1000
 RANDOM_SEED = 42
 
-POSITIVE_WEIGHT = 2.0
-STRONG_NEGATIVE_WEIGHT = 1.5
-WEAK_NEGATIVE_WEIGHT = 1.0
+OBSERVED_CANDIDATE_WEIGHT = 1.0
+UNOBSERVED_CANDIDATE_WEIGHT = 0.3
 
 TRAIN_FILE = RANKING_DATA_DIR / "ranking_train.parquet"
 VALIDATION_FILE = RANKING_DATA_DIR / "ranking_val.parquet"
@@ -44,12 +43,12 @@ LIGHTGBM_PARAMS = {
     "boosting_type": "gbdt",
     "n_estimators": 500,
     "learning_rate": 0.05,
-    "num_leaves": 31,
+    "num_leaves":30,
     "max_depth": -1,
-    "min_child_samples": 20,
-    "subsample": 0.8,
+    "min_child_samples": 40,
+    "subsample": 0.7,
     "colsample_bytree": 0.8,
-    "reg_alpha": 0.0,
+    "reg_alpha": 0.5,
     "reg_lambda": 1.0,
     "random_state": RANDOM_SEED,
     "n_jobs": -1,
