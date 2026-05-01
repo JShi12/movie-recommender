@@ -209,7 +209,7 @@ def fill_weak_historical_features(weak: pd.DataFrame, history: pd.DataFrame) -> 
 
 def prepare_ranking_data(
     output_dir: Path = ranking_config.RANKING_DATA_DIR,
-    candidates_per_user: int = ranking_config.CANDIDATES_PER_USER,
+    candidates_per_user: int = ranking_config.RANKING_CANDIDATES_PER_USER,
     refresh_candidates: bool = False,
 ) -> None:
     rng = np.random.default_rng(ranking_config.RANDOM_SEED)
@@ -258,7 +258,11 @@ def prepare_ranking_data(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=ranking_config.RANKING_DATA_DIR)
-    parser.add_argument("--candidates-per-user", type=int, default=ranking_config.CANDIDATES_PER_USER)
+    parser.add_argument(
+        "--candidates-per-user",
+        type=int,
+        default=ranking_config.RANKING_CANDIDATES_PER_USER,
+    )
     parser.add_argument("--refresh-candidates", action="store_true")
     return parser.parse_args()
 

@@ -12,9 +12,14 @@ from feature_tables import movie_feature_table, user_feature_table
 from ranking.config import project_config
 
 
-USER_EMBEDDING_FEATURES = [f"user_embedding_{idx:02d}" for idx in range(project_config.USER_EMBEDDING_DIM)]
-MOVIE_EMBEDDING_FEATURES = [f"movie_embedding_{idx:02d}" for idx in range(project_config.MOVIE_EMBEDDING_DIM)]
-GENRE_EMBEDDING_FEATURES = [f"genre_embedding_{idx:02d}" for idx in range(project_config.GENRE_EMBEDDING_DIM)]
+USER_RETRIEVAL_VECTOR_FEATURES = [
+    f"user_retrieval_vector_{idx:02d}"
+    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+]
+MOVIE_RETRIEVAL_VECTOR_FEATURES = [
+    f"movie_retrieval_vector_{idx:02d}"
+    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+]
 
 RANKING_FEATURES = [
     "candidate_score",
@@ -32,7 +37,7 @@ RANKING_FEATURES = [
     "day_of_week",
     "user_avg_minus_movie_avg",
     "user_genre_affinity",
-] + [f"genre_{genre}" for genre in GENRE_COLUMNS] + USER_EMBEDDING_FEATURES + MOVIE_EMBEDDING_FEATURES + GENRE_EMBEDDING_FEATURES
+] + [f"genre_{genre}" for genre in GENRE_COLUMNS] + USER_RETRIEVAL_VECTOR_FEATURES + MOVIE_RETRIEVAL_VECTOR_FEATURES
 
 
 def load_joined_movielens(raw_data_dir: Path = project_config.RAW_DATA_DIR) -> pd.DataFrame:
@@ -90,7 +95,7 @@ def add_historical_observed_features(frame: pd.DataFrame) -> pd.DataFrame:
     frame["previous_user_timestamp"] = user_group["timestamp"].shift(1)
     frame["user_activity_gap_log"] = np.log1p(
         (frame["timestamp"] - frame["previous_user_timestamp"]).clip(lower=0)
-    )
+    ) # log(1+x)
 
     movie_group = frame.groupby("movie_id", sort=False)
     frame["movie_rating_count_before"] = movie_group.cumcount()
@@ -170,18 +175,16 @@ def add_retrieval_embedding_features(
     scorer = RetrievalCandidateScorer()
     user_array, movie_array, _ = scorer.embedding_pairs(frame, frame, batch_size=batch_size)
 
-    genre_array = np.zeros((len(frame), len(GENRE_EMBEDDING_FEATURES)), dtype=float)
-    if movie_array.shape[1] > len(MOVIE_EMBEDDING_FEATURES):
-        genre_array = movie_array[
-            :,
-            len(MOVIE_EMBEDDING_FEATURES): len(MOVIE_EMBEDDING_FEATURES)
-            + len(GENRE_EMBEDDING_FEATURES),
-        ]
-        movie_array = movie_array[:, : len(MOVIE_EMBEDDING_FEATURES)]
+    expected_width = project_config.FINAL_EMBEDDING_DIM
+    if user_array.shape[1] != expected_width or movie_array.shape[1] != expected_width:
+        raise ValueError(
+            "Retrieval tower vector width does not match FINAL_EMBEDDING_DIM: "
+            f"user={user_array.shape[1]}, movie={movie_array.shape[1]}, "
+            f"expected={expected_width}"
+        )
 
-    frame[USER_EMBEDDING_FEATURES] = user_array
-    frame[MOVIE_EMBEDDING_FEATURES] = movie_array
-    frame[GENRE_EMBEDDING_FEATURES] = genre_array
+    frame[USER_RETRIEVAL_VECTOR_FEATURES] = user_array
+    frame[MOVIE_RETRIEVAL_VECTOR_FEATURES] = movie_array
     return frame
 
 
