@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import kfp
 from kfp.dsl import _container_op as kfp_container_op
 from tfx.orchestration.kubeflow import kubeflow_dag_runner
 from tfx.orchestration.kubeflow.kubeflow_dag_runner import KubeflowDagRunnerConfig
 
-import config
-from pipeline_definition import create_pipeline
+from retrieval import config
+from retrieval.training.pipeline_definition import create_pipeline
 
 
 def ensure_kfp_compile_flag() -> None:
@@ -32,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-file", type=Path, default=config.KUBEFLOW_PIPELINE_FILE)
     parser.add_argument("--pipeline-name", default=config.KUBEFLOW_PIPELINE_NAME)
     parser.add_argument("--pipeline-root", default="gs://your-bucket/tfx_pipeline")
-    parser.add_argument("--data-root", default="gs://your-bucket/data")
+    parser.add_argument("--data-root", default="gs://your-bucket/data/retrieval")
     parser.add_argument("--serving-model-dir", default=str(config.SERVING_MODEL_DIR))
     parser.add_argument("--metadata-path", default=str(config.METADATA_PATH))
     parser.add_argument("--tfx-image", default=config.KUBEFLOW_TFX_IMAGE)
@@ -51,7 +56,7 @@ def main() -> None:
     data_root = args.data_root
     if looks_like_placeholder_gcs(pipeline_root) or looks_like_placeholder_gcs(data_root):
         pipeline_root = str(config.PIPELINE_ROOT)
-        data_root = str(config.DATA_ROOT)
+        data_root = str(config.RETRIEVAL_DATA_DIR)
         print("Placeholder GCS paths detected; compiling with local paths.")
 
     tfx_pipeline = create_pipeline(

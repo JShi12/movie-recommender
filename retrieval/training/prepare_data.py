@@ -3,82 +3,28 @@
 This is the productionized version of the data-loading and time-split notebook
 cells. It reads the raw MovieLens 100k files from ``ml-100k`` and writes:
 
-- data/train.csv
-- data/val.csv
-- data/test.csv
+- data/retrieval/train.csv
+- data/retrieval/val.csv
+- data/retrieval/test.csv
 """
 
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-import config
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-
-GENRE_COLUMNS = [
-    "unknown",
-    "Action",
-    "Adventure",
-    "Animation",
-    "Children",
-    "Comedy",
-    "Crime",
-    "Documentary",
-    "Drama",
-    "Fantasy",
-    "Film-Noir",
-    "Horror",
-    "Musical",
-    "Mystery",
-    "Romance",
-    "Sci-Fi",
-    "Thriller",
-    "War",
-    "Western",
-]
-
-
-@dataclass(frozen=True)
-class SplitFractions:
-    train: float = config.TRAIN_FRACTION
-    validation: float = config.VALIDATION_FRACTION
-
-    @property
-    def test(self) -> float:
-        return 1.0 - self.train - self.validation
-
-
-def load_movielens_100k(data_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Load raw MovieLens 100k ratings, users, and movies files."""
-    ratings = pd.read_csv(
-        data_dir / "u.data",
-        sep="\t",
-        names=["user_id", "movie_id", "rating", "timestamp"],
-        encoding="latin-1",
-    )
-    users = pd.read_csv(
-        data_dir / "u.user",
-        sep="|",
-        names=["user_id", "age", "gender", "occupation", "zip_code"],
-        encoding="latin-1",
-    )
-    movies = pd.read_csv(
-        data_dir / "u.item",
-        sep="|",
-        names=["movie_id", "title", "release_date", "video_release_date", "imdb_url"]
-        + GENRE_COLUMNS,
-        encoding="latin-1",
-    )
-    return ratings, users, movies
-
-
-def _active_genres(row: pd.Series) -> str:
-    active = [genre for genre in GENRE_COLUMNS if row[genre] == 1]
-    return "|".join(active) if active else "unknown"
+from retrieval import config
+from shared.movielens import SplitFractions
+from shared.movielens import active_genres
+from shared.movielens import load_movielens_100k
+from shared.movielens import time_based_split
 
 
 def build_model_dataframe(
@@ -93,7 +39,7 @@ def build_model_dataframe(
     merged["label"] = (
         merged["rating"] >= config.POSITIVE_RATING_THRESHOLD
     ).astype(int)
-    merged["genres"] = merged.apply(_active_genres, axis=1)
+    merged["genres"] = merged.apply(active_genres, axis=1)
 
     feature_cols = [
         "user_id",
@@ -106,31 +52,6 @@ def build_model_dataframe(
         "label",
     ]
     return merged[feature_cols].copy()
-
-
-def time_based_split(
-    data: pd.DataFrame,
-    fractions: SplitFractions = SplitFractions(),
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Split records chronologically into train/validation/test dataframes."""
-    if fractions.train <= 0 or fractions.validation <= 0 or fractions.test <= 0:
-        raise ValueError(f"Invalid split fractions: {fractions}")
-
-    sorted_data = data.sort_values("timestamp").reset_index(drop=True)
-    n_total = len(sorted_data)
-    n_train = int(n_total * fractions.train)
-    n_val = int(n_total * fractions.validation)
-
-    train = sorted_data.iloc[:n_train]
-    validation = sorted_data.iloc[n_train : n_train + n_val]
-    test = sorted_data.iloc[n_train + n_val :]
-
-    if train["timestamp"].max() > validation["timestamp"].min():
-        raise ValueError("Temporal leakage detected between train and validation")
-    if validation["timestamp"].max() > test["timestamp"].min():
-        raise ValueError("Temporal leakage detected between validation and test")
-
-    return train, validation, test
 
 
 def write_splits(
@@ -156,7 +77,7 @@ def _print_split_summary(name: str, frame: pd.DataFrame, n_total: int) -> None:
 
 def prepare_data(
     raw_data_dir: Path = config.RAW_DATA_DIR,
-    output_dir: Path = config.DATA_ROOT,
+    output_dir: Path = config.RETRIEVAL_DATA_DIR,
     fractions: SplitFractions = SplitFractions(),
 ) -> None:
     """Run the full data-preparation workflow."""
@@ -179,7 +100,7 @@ def prepare_data(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw-data-dir", type=Path, default=config.RAW_DATA_DIR)
-    parser.add_argument("--output-dir", type=Path, default=config.DATA_ROOT)
+    parser.add_argument("--output-dir", type=Path, default=config.RETRIEVAL_DATA_DIR)
     parser.add_argument("--train-fraction", type=float, default=config.TRAIN_FRACTION)
     parser.add_argument("--validation-fraction", type=float, default=config.VALIDATION_FRACTION)
     return parser.parse_args()

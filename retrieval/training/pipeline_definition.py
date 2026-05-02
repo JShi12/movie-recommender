@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import tensorflow_model_analysis as tfma
@@ -22,7 +23,11 @@ from tfx.proto import example_gen_pb2, pusher_pb2, trainer_pb2
 from tfx.types import Channel
 from tfx.types.standard_artifacts import Model, ModelBlessing
 
-import config
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from retrieval import config
 
 
 def create_eval_config() -> tfma.EvalConfig:
@@ -69,7 +74,7 @@ def create_eval_config() -> tfma.EvalConfig:
 def create_pipeline(
     pipeline_name: str = config.PIPELINE_NAME,
     pipeline_root: str | Path = config.PIPELINE_ROOT,
-    data_root: str | Path = config.DATA_ROOT,
+    data_root: str | Path = config.RETRIEVAL_DATA_DIR,
     transform_module_path: str | Path = config.TRANSFORM_MODULE_FILE,
     trainer_module_path: str | Path = config.TRAINER_MODULE_FILE,
     serving_model_dir: str | Path = config.SERVING_MODEL_DIR,

@@ -16,10 +16,11 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from prepare_data import SplitFractions, time_based_split
+from retrieval.candidates import generate_top_k_candidates
+from shared.movielens import SplitFractions
+from shared.movielens import time_based_split
 from ranking import config as ranking_config
-from ranking.config import project_config
-from ranking.feature_builder import (
+from ranking.features import (
     RANKING_FEATURES,
     add_retrieval_embedding_features,
     finalize_features,
@@ -27,21 +28,23 @@ from ranking.feature_builder import (
     movie_feature_table,
     user_feature_table,
 )
-from ranking.prepare_ranking_data import fill_candidate_historical_features
-from ranking.prepare_ranking_data import candidate_request_times
-from retrieval_candidates import generate_top_k_candidates
+from ranking.training.prepare_ranking_data import fill_candidate_historical_features
+from ranking.training.prepare_ranking_data import candidate_request_times
 
 
 def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     labelled = raw[raw["label"].notna()].copy()
     return time_based_split(
         labelled,
-        SplitFractions(project_config.TRAIN_FRACTION, project_config.VALIDATION_FRACTION),
+        SplitFractions(ranking_config.TRAIN_FRACTION, ranking_config.VALIDATION_FRACTION),
     )
 
 
-def split_and_history(split: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    raw = load_joined_movielens()
+def split_and_history(
+    split: str,
+    raw_data_dir: Path = ranking_config.RAW_DATA_DIR,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    raw = load_joined_movielens(raw_data_dir)
     train, val, test = split_observed_interactions(raw)
     if split == "train":
         return train, train
@@ -62,13 +65,17 @@ def build_end_to_end_candidate_features(
     candidates_per_user: int,
     batch_size: int,
     include_seen_history: bool,
+    raw_data_dir: Path = ranking_config.RAW_DATA_DIR,
+    retrieval_model_dir: Path | None = None,
+    transform_graph_dir: Path | None = None,
+    ann_index_file: Path = ranking_config.ANN_INDEX_FILE,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     positives = positive_interactions(target)
     if positives.empty:
         raise ValueError("No positive interactions found in the selected split.")
 
-    users = user_feature_table()
-    movies = movie_feature_table()
+    users = user_feature_table(raw_data_dir)
+    movies = movie_feature_table(raw_data_dir)
     eval_users = users[users["user_id"].isin(positives["user_id"].unique())].copy()
 
     candidates = generate_top_k_candidates(
@@ -76,6 +83,9 @@ def build_end_to_end_candidate_features(
         movies,
         k=candidates_per_user,
         batch_size=batch_size,
+        model_dir=retrieval_model_dir,
+        transform_graph_dir=transform_graph_dir,
+        ann_index_file=ann_index_file,
     )
 
     if not include_seen_history:
@@ -101,7 +111,12 @@ def build_end_to_end_candidate_features(
 
     frame = fill_candidate_historical_features(frame, history)
     frame = finalize_features(frame, history)
-    frame = add_retrieval_embedding_features(frame, batch_size=batch_size)
+    frame = add_retrieval_embedding_features(
+        frame,
+        batch_size=batch_size,
+        retrieval_model_dir=retrieval_model_dir,
+        transform_graph_dir=transform_graph_dir,
+    )
     return frame, positives
 
 
@@ -177,15 +192,23 @@ def evaluate_end_to_end(
     scored_candidates_file: Path = ranking_config.END_TO_END_CANDIDATES_FILE,
     batch_size: int = 4096,
     include_seen_history: bool = False,
+    raw_data_dir: Path = ranking_config.RAW_DATA_DIR,
+    retrieval_model_dir: Path | None = None,
+    transform_graph_dir: Path | None = None,
+    ann_index_file: Path = ranking_config.ANN_INDEX_FILE,
 ) -> dict[str, float | int | str | None]:
     ks = sorted(ks or [10, 20, 100])
-    target, history = split_and_history(split)
+    target, history = split_and_history(split, raw_data_dir=raw_data_dir)
     frame, positives = build_end_to_end_candidate_features(
         target=target,
         history=history,
         candidates_per_user=candidates_per_user,
         batch_size=batch_size,
         include_seen_history=include_seen_history,
+        raw_data_dir=raw_data_dir,
+        retrieval_model_dir=retrieval_model_dir,
+        transform_graph_dir=transform_graph_dir,
+        ann_index_file=ann_index_file,
     )
 
     booster = lgb.Booster(model_file=str(model_file))
@@ -197,6 +220,9 @@ def evaluate_end_to_end(
     metrics["candidates_per_user"] = candidates_per_user
     metrics["model_file"] = str(model_file)
     metrics["include_seen_history"] = include_seen_history
+    metrics["raw_data_dir"] = str(raw_data_dir)
+    metrics["retrieval_model_dir"] = str(retrieval_model_dir) if retrieval_model_dir else None
+    metrics["transform_graph_dir"] = str(transform_graph_dir) if transform_graph_dir else None
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
@@ -227,6 +253,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--batch-size", type=int, default=4096)
     parser.add_argument("--include-seen-history", action="store_true")
+    parser.add_argument("--raw-data-dir", type=Path, default=ranking_config.RAW_DATA_DIR)
+    parser.add_argument("--retrieval-model-dir", type=Path, default=None)
+    parser.add_argument("--transform-graph-dir", type=Path, default=None)
+    parser.add_argument("--ann-index-file", type=Path, default=ranking_config.ANN_INDEX_FILE)
     return parser.parse_args()
 
 
@@ -241,6 +271,10 @@ def main() -> None:
         scored_candidates_file=args.scored_candidates_file,
         batch_size=args.batch_size,
         include_seen_history=args.include_seen_history,
+        raw_data_dir=args.raw_data_dir,
+        retrieval_model_dir=args.retrieval_model_dir,
+        transform_graph_dir=args.transform_graph_dir,
+        ann_index_file=args.ann_index_file,
     )
 
 

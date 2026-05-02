@@ -2,31 +2,33 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-from prepare_data import GENRE_COLUMNS, load_movielens_100k
-from feature_tables import movie_feature_table, user_feature_table
-from ranking.config import project_config
+from pathlib import Path
+
+from shared.feature_tables import load_joined_movielens
+from shared.feature_tables import movie_feature_table
+from shared.feature_tables import user_feature_table
+from shared.movielens import GENRE_COLUMNS
+from ranking import config as ranking_config
 
 
 USER_RETRIEVAL_VECTOR_FEATURES = [
     f"user_retrieval_vector_{idx:02d}"
-    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 MOVIE_RETRIEVAL_VECTOR_FEATURES = [
     f"movie_retrieval_vector_{idx:02d}"
-    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 RETRIEVAL_VECTOR_PRODUCT_FEATURES = [
     f"retrieval_vector_product_{idx:02d}"
-    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 RETRIEVAL_VECTOR_ABS_DIFF_FEATURES = [
     f"retrieval_vector_abs_diff_{idx:02d}"
-    for idx in range(project_config.FINAL_EMBEDDING_DIM)
+    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 
 BASE_RANKING_FEATURES = [
@@ -55,34 +57,6 @@ RANKING_FEATURES = (
     + RETRIEVAL_VECTOR_ABS_DIFF_FEATURES
 )
 
-
-def load_joined_movielens(raw_data_dir: Path = project_config.RAW_DATA_DIR) -> pd.DataFrame:
-    """Load and join raw ratings, users, and movies with movie metadata."""
-    ratings, users, movies = load_movielens_100k(raw_data_dir)
-    movies = movies.copy()
-    movies["release_year"] = pd.to_datetime(
-        movies["release_date"],
-        errors="coerce",
-        dayfirst=True,
-    ).dt.year
-    movies["release_year"] = movies["release_year"].fillna(movies["release_year"].median())
-    movies["genres"] = movies.apply(active_genres, axis=1)
-
-    data = ratings.merge(users, on="user_id", how="left")
-    data = data.merge(movies, on="movie_id", how="left")
-    data["label"] = np.where(
-        data["rating"] >= project_config.POSITIVE_RATING_THRESHOLD,
-        1,
-        np.where(data["rating"] <= 2, 0, np.nan),
-    )
-    return data
-
-
-def active_genres(row: pd.Series) -> str:
-    active = [genre for genre in GENRE_COLUMNS if row[genre] == 1]
-    return "|".join(active) if active else "unknown"
-
-
 def add_context_features(frame: pd.DataFrame) -> pd.DataFrame:
     frame = frame.copy()
     dt = pd.to_datetime(frame["timestamp"], unit="s")
@@ -95,7 +69,7 @@ def add_historical_observed_features(frame: pd.DataFrame) -> pd.DataFrame:
     """Add time-aware stats for observed interactions."""
     frame = frame.sort_values(["timestamp", "user_id", "movie_id"]).copy()
     frame["_is_like"] = (
-        frame["rating"] >= project_config.POSITIVE_RATING_THRESHOLD
+        frame["rating"] >= ranking_config.POSITIVE_RATING_THRESHOLD
     ).astype(float)
 
     user_group = frame.groupby("user_id", sort=False)
@@ -140,7 +114,7 @@ def add_historical_observed_features(frame: pd.DataFrame) -> pd.DataFrame:
 
 def user_genre_preferences(history: pd.DataFrame) -> pd.DataFrame:
     """Compute user genre preferences from positive historical interactions."""
-    liked = history[history["rating"] >= project_config.POSITIVE_RATING_THRESHOLD]
+    liked = history[history["rating"] >= ranking_config.POSITIVE_RATING_THRESHOLD]
     prefs = liked.groupby("user_id")[GENRE_COLUMNS].sum()
     totals = prefs.sum(axis=1).replace(0, np.nan)
     prefs = prefs.div(totals, axis=0).fillna(0.0)
@@ -180,18 +154,23 @@ def finalize_features(frame: pd.DataFrame, history: pd.DataFrame) -> pd.DataFram
 def add_retrieval_embedding_features(
     frame: pd.DataFrame,
     batch_size: int = 4096,
+    retrieval_model_dir: Path | None = None,
+    transform_graph_dir: Path | None = None,
 ) -> pd.DataFrame:
     """Add retrieval embedding features from exported tower signatures."""
     if frame.empty:
         return frame
 
-    from retrieval_candidates import RetrievalCandidateScorer
+    from retrieval.candidates import RetrievalCandidateScorer
 
     frame = frame.copy()
-    scorer = RetrievalCandidateScorer()
+    scorer = RetrievalCandidateScorer(
+        model_dir=retrieval_model_dir,
+        transform_graph_dir=transform_graph_dir,
+    )
     user_array, movie_array, _ = scorer.embedding_pairs(frame, frame, batch_size=batch_size)
 
-    expected_width = project_config.FINAL_EMBEDDING_DIM
+    expected_width = ranking_config.FINAL_EMBEDDING_DIM
     if user_array.shape[1] != expected_width or movie_array.shape[1] != expected_width:
         raise ValueError(
             "Retrieval tower vector width does not match FINAL_EMBEDDING_DIM: "

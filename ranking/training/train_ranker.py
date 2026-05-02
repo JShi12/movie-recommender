@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -16,7 +16,7 @@ import lightgbm as lgb
 import pandas as pd
 
 from ranking import config as ranking_config
-from ranking.feature_builder import RANKING_FEATURES
+from ranking.features import RANKING_FEATURES
 
 
 def load_ranking_frame(path: Path) -> pd.DataFrame:
@@ -37,6 +37,8 @@ def train_ranker(
     train_path: Path = ranking_config.TRAIN_FILE,
     validation_path: Path = ranking_config.VALIDATION_FILE,
     model_file: Path = ranking_config.MODEL_FILE,
+    joblib_model_file: Path | None = None,
+    features_file: Path = ranking_config.FEATURES_FILE,
 ) -> None:
     train = sorted_for_ranking(load_ranking_frame(train_path))
     val = sorted_for_ranking(load_ranking_frame(validation_path))
@@ -69,13 +71,17 @@ def train_ranker(
 
     model_file.parent.mkdir(parents=True, exist_ok=True)
     model.booster_.save_model(str(model_file))
-    joblib.dump(model, model_file.with_suffix(".joblib"))
-    ranking_config.FEATURES_FILE.write_text(
+    joblib_model_file = joblib_model_file or model_file.with_suffix(".joblib")
+    joblib_model_file.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, joblib_model_file)
+    features_file.parent.mkdir(parents=True, exist_ok=True)
+    features_file.write_text(
         json.dumps(RANKING_FEATURES, indent=2),
         encoding="utf-8",
     )
     print(f"Ranker saved to {model_file}")
-    print(f"Joblib model saved to {model_file.with_suffix('.joblib')}")
+    print(f"Joblib model saved to {joblib_model_file}")
+    print(f"Feature list saved to {features_file}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -83,12 +89,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-path", type=Path, default=ranking_config.TRAIN_FILE)
     parser.add_argument("--validation-path", type=Path, default=ranking_config.VALIDATION_FILE)
     parser.add_argument("--model-file", type=Path, default=ranking_config.MODEL_FILE)
+    parser.add_argument("--joblib-model-file", type=Path, default=None)
+    parser.add_argument("--features-file", type=Path, default=ranking_config.FEATURES_FILE)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    train_ranker(args.train_path, args.validation_path, args.model_file)
+    train_ranker(
+        train_path=args.train_path,
+        validation_path=args.validation_path,
+        model_file=args.model_file,
+        joblib_model_file=args.joblib_model_file,
+        features_file=args.features_file,
+    )
 
 
 if __name__ == "__main__":

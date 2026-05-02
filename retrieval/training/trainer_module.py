@@ -5,9 +5,12 @@ from tensorflow.keras import layers
 from tfx.components.trainer.fn_args_utils import FnArgs
 
 try:
-    import config as project_config
+    from retrieval import config as project_config
 except ImportError:
-    project_config = None
+    try:
+        import config as project_config
+    except ImportError:
+        project_config = None
 
 
 def _config_value(name, default):
@@ -26,7 +29,7 @@ LABEL_KEY = 'label'
 # Age buckets are fixed by transform config
 AGE_BUCKETS = 6
 
-# Tunable defaults. The repo-level source of truth is config.py; fallback values
+# Tunable defaults. The source of truth is retrieval/config.py; fallback values
 # keep this TFX module loadable if a runner copies only trainer_module.py.
 BATCH_SIZE = _config_value('BATCH_SIZE', 64)
 EPOCHS = _config_value('EPOCHS', 10)

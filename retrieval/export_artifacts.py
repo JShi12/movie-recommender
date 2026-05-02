@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import joblib
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 
-import config
-from retrieval_candidates import RetrievalCandidateScorer
-from feature_tables import movie_feature_table, user_feature_table
+from retrieval import config
+from retrieval.candidates import RetrievalCandidateScorer
+from shared.feature_tables import movie_feature_table, user_feature_table
 
 
 def _embedding_columns(prefix: str, width: int) -> list[str]:

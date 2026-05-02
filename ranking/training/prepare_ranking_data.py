@@ -6,17 +6,18 @@ import argparse
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 import pandas as pd
 
-from prepare_data import SplitFractions, time_based_split
+from retrieval.candidates import generate_top_k_candidates
+from shared.movielens import SplitFractions
+from shared.movielens import time_based_split
 from ranking import config as ranking_config
-from ranking.config import project_config
-from ranking.feature_builder import (
+from ranking.features import (
     add_retrieval_embedding_features,
     add_historical_observed_features,
     finalize_features,
@@ -24,14 +25,13 @@ from ranking.feature_builder import (
     movie_feature_table,
     user_feature_table,
 )
-from retrieval_candidates import generate_top_k_candidates
 
 
 def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     labelled = raw[raw["rating"].notna()].copy()
     return time_based_split(
         labelled,
-        SplitFractions(project_config.TRAIN_FRACTION, project_config.VALIDATION_FRACTION),
+        SplitFractions(ranking_config.TRAIN_FRACTION, ranking_config.VALIDATION_FRACTION),
     )
 
 
@@ -91,6 +91,9 @@ def build_candidate_ranking_split(
     candidates: pd.DataFrame,
     movies: pd.DataFrame,
     users: pd.DataFrame,
+    retrieval_model_dir: Path | None = None,
+    transform_graph_dir: Path | None = None,
+    batch_size: int = 4096,
 ) -> pd.DataFrame:
     """Build ranking rows from the actual retrieval top-K candidate distribution."""
     target_users = observed_split["user_id"].unique()
@@ -117,7 +120,12 @@ def build_candidate_ranking_split(
 
     frame = fill_candidate_historical_features(frame, history)
     frame = finalize_features(frame, history)
-    frame = add_retrieval_embedding_features(frame)
+    frame = add_retrieval_embedding_features(
+        frame,
+        batch_size=batch_size,
+        retrieval_model_dir=retrieval_model_dir,
+        transform_graph_dir=transform_graph_dir,
+    )
     return frame.sort_values(
         ["user_id", "candidate_score"],
         ascending=[True, False],
@@ -173,11 +181,16 @@ def prepare_ranking_data(
     output_dir: Path = ranking_config.RANKING_DATA_DIR,
     candidates_per_user: int = ranking_config.RANKING_CANDIDATES_PER_USER,
     refresh_candidates: bool = False,
+    raw_data_dir: Path = ranking_config.RAW_DATA_DIR,
+    retrieval_model_dir: Path | None = None,
+    transform_graph_dir: Path | None = None,
+    ann_index_file: Path = ranking_config.ANN_INDEX_FILE,
+    batch_size: int = 4096,
 ) -> None:
-    raw = load_joined_movielens()
+    raw = load_joined_movielens(raw_data_dir)
     train, val, test = split_observed_interactions(raw)
-    users = user_feature_table()
-    movies = movie_feature_table()
+    users = user_feature_table(raw_data_dir)
+    movies = movie_feature_table(raw_data_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     candidates_path = output_dir / "retrieval_candidates.parquet"
@@ -189,11 +202,27 @@ def prepare_ranking_data(
             or int(candidates["retrieval_rank"].max()) < candidates_per_user
         ):
             print("Cached candidates are missing required ranks; regenerating.")
-            candidates = generate_top_k_candidates(users, movies, k=candidates_per_user)
+            candidates = generate_top_k_candidates(
+                users,
+                movies,
+                k=candidates_per_user,
+                batch_size=batch_size,
+                model_dir=retrieval_model_dir,
+                transform_graph_dir=transform_graph_dir,
+                ann_index_file=ann_index_file,
+            )
             candidates.to_parquet(candidates_path, index=False)
     else:
         print("Generating retrieval top-K candidates from latest two-tower model...")
-        candidates = generate_top_k_candidates(users, movies, k=candidates_per_user)
+        candidates = generate_top_k_candidates(
+            users,
+            movies,
+            k=candidates_per_user,
+            batch_size=batch_size,
+            model_dir=retrieval_model_dir,
+            transform_graph_dir=transform_graph_dir,
+            ann_index_file=ann_index_file,
+        )
         candidates.to_parquet(candidates_path, index=False)
 
     splits = {
@@ -214,6 +243,9 @@ def prepare_ranking_data(
             candidates,
             movies,
             users,
+            retrieval_model_dir=retrieval_model_dir,
+            transform_graph_dir=transform_graph_dir,
+            batch_size=batch_size,
         )
         ranking_frame.to_parquet(paths[name], index=False)
         print(
@@ -233,12 +265,26 @@ def parse_args() -> argparse.Namespace:
         default=ranking_config.RANKING_CANDIDATES_PER_USER,
     )
     parser.add_argument("--refresh-candidates", action="store_true")
+    parser.add_argument("--raw-data-dir", type=Path, default=ranking_config.RAW_DATA_DIR)
+    parser.add_argument("--retrieval-model-dir", type=Path, default=None)
+    parser.add_argument("--transform-graph-dir", type=Path, default=None)
+    parser.add_argument("--ann-index-file", type=Path, default=ranking_config.ANN_INDEX_FILE)
+    parser.add_argument("--batch-size", type=int, default=4096)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    prepare_ranking_data(args.output_dir, args.candidates_per_user, args.refresh_candidates)
+    prepare_ranking_data(
+        output_dir=args.output_dir,
+        candidates_per_user=args.candidates_per_user,
+        refresh_candidates=args.refresh_candidates,
+        raw_data_dir=args.raw_data_dir,
+        retrieval_model_dir=args.retrieval_model_dir,
+        transform_graph_dir=args.transform_graph_dir,
+        ann_index_file=args.ann_index_file,
+        batch_size=args.batch_size,
+    )
 
 
 if __name__ == "__main__":

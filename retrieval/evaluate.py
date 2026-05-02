@@ -9,15 +9,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 import pandas as pd
 
-import config
-from prepare_data import SplitFractions, time_based_split
-from feature_tables import load_joined_movielens, movie_feature_table, user_feature_table
-from retrieval_candidates import generate_top_k_candidates, latest_pushed_model_dir
+from retrieval import config
+from retrieval.candidates import generate_top_k_candidates, latest_pushed_model_dir
+from shared.feature_tables import load_joined_movielens, movie_feature_table, user_feature_table
+from shared.movielens import SplitFractions
+from shared.movielens import time_based_split
 
 
 def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

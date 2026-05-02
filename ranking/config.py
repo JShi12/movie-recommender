@@ -1,21 +1,22 @@
 """Configuration for the LightGBM ranking stage."""
 
 from pathlib import Path
-import importlib.util
+
+from retrieval import config as retrieval_config
+from shared import config as shared_config
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_PROJECT_CONFIG_PATH = PROJECT_ROOT / "config.py"
-_spec = importlib.util.spec_from_file_location("project_config", _PROJECT_CONFIG_PATH)
-if _spec is None or _spec.loader is None:
-    raise ImportError(f"Could not load project config from {_PROJECT_CONFIG_PATH}")
-project_config = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(project_config)
+PROJECT_ROOT = shared_config.PROJECT_ROOT
+RAW_DATA_DIR = shared_config.RAW_DATA_DIR
+TRAIN_FRACTION = shared_config.TRAIN_FRACTION
+VALIDATION_FRACTION = shared_config.VALIDATION_FRACTION
+POSITIVE_RATING_THRESHOLD = shared_config.POSITIVE_RATING_THRESHOLD
+FINAL_EMBEDDING_DIM = retrieval_config.FINAL_EMBEDDING_DIM
 
-
-RANKING_DATA_DIR = project_config.DATA_ROOT / "ranking"
-RANKER_ARTIFACT_DIR = project_config.PROJECT_ROOT / "artifacts" / "ranker"
-RETRIEVAL_ARTIFACT_DIR = project_config.RETRIEVAL_ARTIFACT_DIR
+RANKING_DATA_DIR = shared_config.DATA_ROOT / "ranking"
+RANKER_ARTIFACT_DIR = shared_config.PROJECT_ROOT / "artifacts" / "ranker"
+PUSHED_RANKER_DIR = RANKER_ARTIFACT_DIR / "pushed"
+RETRIEVAL_ARTIFACT_DIR = retrieval_config.RETRIEVAL_ARTIFACT_DIR
 
 RANKING_CANDIDATES_PER_USER = 1000
 RANDOM_SEED = 42
@@ -31,11 +32,27 @@ FEATURES_FILE = RANKER_ARTIFACT_DIR / "features.json"
 METRICS_FILE = RANKER_ARTIFACT_DIR / "metrics.json"
 END_TO_END_METRICS_FILE = RANKER_ARTIFACT_DIR / "end_to_end_metrics.json"
 END_TO_END_CANDIDATES_FILE = RANKER_ARTIFACT_DIR / "end_to_end_scored_candidates.parquet"
-MOVIE_EMBEDDINGS_FILE = project_config.MOVIE_EMBEDDINGS_FILE
-USER_EMBEDDINGS_FILE = project_config.USER_EMBEDDINGS_FILE
-ANN_INDEX_FILE = project_config.ANN_INDEX_FILE
-RETRIEVAL_METRICS_FILE = project_config.RETRIEVAL_METRICS_FILE
-RETRIEVAL_EVAL_CANDIDATES_FILE = project_config.RETRIEVAL_EVAL_CANDIDATES_FILE
+PUSHED_MODEL_FILE_NAME = "lgbm_ranker.txt"
+PUSHED_JOBLIB_FILE_NAME = "lgbm_ranker.joblib"
+PUSHED_FEATURES_FILE_NAME = "features.json"
+PUSHED_METRICS_FILE_NAME = "metrics.json"
+PUSHED_END_TO_END_METRICS_FILE_NAME = "end_to_end_metrics.json"
+MOVIE_EMBEDDINGS_FILE = retrieval_config.MOVIE_EMBEDDINGS_FILE
+USER_EMBEDDINGS_FILE = retrieval_config.USER_EMBEDDINGS_FILE
+ANN_INDEX_FILE = retrieval_config.ANN_INDEX_FILE
+RETRIEVAL_METRICS_FILE = retrieval_config.RETRIEVAL_METRICS_FILE
+RETRIEVAL_EVAL_CANDIDATES_FILE = retrieval_config.RETRIEVAL_EVAL_CANDIDATES_FILE
+
+MIN_END_TO_END_NDCG_AT_10 = 0.0
+MIN_END_TO_END_RECALL_AT_100 = 0.0
+
+KUBEFLOW_RANKING_PIPELINE_NAME = "movielens-ranking-pipeline"
+KUBEFLOW_RANKING_PIPELINE_FILE = (
+    shared_config.PROJECT_ROOT / f"{KUBEFLOW_RANKING_PIPELINE_NAME}.yaml"
+)
+KUBEFLOW_RANKING_IMAGE = "movielens-ranking:latest"
+KUBEFLOW_RANKING_PIPELINE_ROOT = "/tmp/movielens-ranking-pipeline"
+KUBEFLOW_RAW_DATA_DIR = "/data/ml-100k"
 
 LIGHTGBM_PARAMS = {
     "objective": "lambdarank",
@@ -43,7 +60,7 @@ LIGHTGBM_PARAMS = {
     "boosting_type": "gbdt",
     "n_estimators": 500,
     "learning_rate": 0.05,
-    "num_leaves":30,
+    "num_leaves": 30,
     "max_depth": -1,
     "min_child_samples": 40,
     "subsample": 0.7,
@@ -63,8 +80,8 @@ def latest_numeric_subdir(parent: Path) -> Path:
 
 
 def latest_retrieval_model_dir() -> Path:
-    return latest_numeric_subdir(project_config.PIPELINE_ROOT / "Trainer" / "model") / "Format-Serving"
+    return latest_numeric_subdir(retrieval_config.PIPELINE_ROOT / "Trainer" / "model") / "Format-Serving"
 
 
 def latest_transform_graph_dir() -> Path:
-    return latest_numeric_subdir(project_config.PIPELINE_ROOT / "Transform" / "transform_graph")
+    return latest_numeric_subdir(retrieval_config.PIPELINE_ROOT / "Transform" / "transform_graph")

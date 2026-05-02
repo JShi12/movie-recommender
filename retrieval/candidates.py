@@ -10,7 +10,7 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow_transform as tft
 
-import config
+from retrieval import config
 
 
 RETRIEVAL_LOGIT_SCALE = 5.0
@@ -290,11 +290,23 @@ def generate_top_k_candidates(
     movies: pd.DataFrame,
     k: int = config.CANDIDATES_PER_USER,
     batch_size: int = 4096,
+    model_dir: Path | None = None,
+    transform_graph_dir: Path | None = None,
+    ann_index_file: Path = config.ANN_INDEX_FILE,
 ) -> pd.DataFrame:
     """Return top K movies per user, using an ANN index when available."""
-    scorer = RetrievalCandidateScorer()
-    if scorer.has_embedding_signatures and config.ANN_INDEX_FILE.exists():
-        return generate_top_k_candidates_from_ann(scorer, users, k=k, batch_size=batch_size)
+    scorer = RetrievalCandidateScorer(
+        model_dir=model_dir,
+        transform_graph_dir=transform_graph_dir,
+    )
+    if scorer.has_embedding_signatures and ann_index_file.exists():
+        return generate_top_k_candidates_from_ann(
+            scorer,
+            users,
+            k=k,
+            batch_size=batch_size,
+            ann_index_file=ann_index_file,
+        )
 
     return generate_top_k_candidates_bruteforce(scorer, users, movies, k=k, batch_size=batch_size)
 
@@ -304,9 +316,10 @@ def generate_top_k_candidates_from_ann(
     users: pd.DataFrame,
     k: int = config.CANDIDATES_PER_USER,
     batch_size: int = 4096,
+    ann_index_file: Path = config.ANN_INDEX_FILE,
 ) -> pd.DataFrame:
     """Query the exported movie nearest-neighbor index with user embeddings."""
-    artifact = joblib.load(config.ANN_INDEX_FILE)
+    artifact = joblib.load(ann_index_file)
     index = artifact["index"]
     movie_ids = artifact["movie_ids"]
     user_rows = users.reset_index(drop=True)

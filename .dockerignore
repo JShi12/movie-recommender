@@ -1,0 +1,16 @@
+.git
+venv
+env
+.venv
+__pycache__
+*.pyc
+.ipynb_checkpoints
+data
+artifacts
+tfx_pipeline_output
+tfx_pipeline_output_*
+ml-100k
+logs
+tmp
+temp
+*.yaml
