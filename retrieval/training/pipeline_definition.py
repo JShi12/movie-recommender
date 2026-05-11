@@ -28,12 +28,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from retrieval import config
+from shared.schema import LABEL_KEY
 
 
 def create_eval_config() -> tfma.EvalConfig:
     """Create the TFMA evaluation config used by the Evaluator component."""
     return tfma.EvalConfig(
-        model_specs=[tfma.ModelSpec(label_key="label")],
+        model_specs=[tfma.ModelSpec(label_key=LABEL_KEY)],
         slicing_specs=[
             tfma.SlicingSpec(),
         ],

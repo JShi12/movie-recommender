@@ -17,14 +17,29 @@ def _config_value(name, default):
     return getattr(project_config, name, default) if project_config is not None else default
 
 
-# Feature names (must match transform module)
-USER_ID_KEY = 'user_id'
-MOVIE_ID_KEY = 'movie_id'
-AGE_KEY = 'age'
-GENDER_KEY = 'gender'
-OCCUPATION_KEY = 'occupation'
-GENRES_KEY = 'genres'
-LABEL_KEY = 'label'
+try:
+    from shared.schema import (
+        AGE_KEY,
+        GENDER_KEY,
+        GENRES_KEY,
+        LABEL_KEY,
+        MOVIE_FEATURE_KEYS,
+        MOVIE_ID_KEY,
+        OCCUPATION_KEY,
+        USER_FEATURE_KEYS,
+        USER_ID_KEY,
+    )
+except ImportError:
+    # Keep the TFX module loadable when executed from a copied module file.
+    USER_ID_KEY = 'user_id'
+    MOVIE_ID_KEY = 'movie_id'
+    AGE_KEY = 'age'
+    GENDER_KEY = 'gender'
+    OCCUPATION_KEY = 'occupation'
+    GENRES_KEY = 'genres'
+    LABEL_KEY = 'label'
+    USER_FEATURE_KEYS = [USER_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY]
+    MOVIE_FEATURE_KEYS = [MOVIE_ID_KEY, GENRES_KEY]
 
 # Age buckets are fixed by transform config
 AGE_BUCKETS = 6
@@ -390,11 +405,11 @@ def run_fn(fn_args: FnArgs):
     transformed_feature_spec.pop(LABEL_KEY, None)
     user_feature_spec = {
         key: transformed_feature_spec[key]
-        for key in [USER_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY]
+        for key in USER_FEATURE_KEYS
     }
     movie_feature_spec = {
         key: transformed_feature_spec[key]
-        for key in [MOVIE_ID_KEY, GENRES_KEY]
+        for key in MOVIE_FEATURE_KEYS
     }
 
     def _parse_transformed_examples(serialized_examples, feature_spec, dense_keys):

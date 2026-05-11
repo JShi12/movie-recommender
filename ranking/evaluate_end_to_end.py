@@ -32,6 +32,12 @@ from ranking.training.prepare_ranking_data import fill_candidate_historical_feat
 from ranking.training.prepare_ranking_data import candidate_request_times
 
 
+def optional_path(value: str | None) -> Path | None:
+    if value in (None, ""):
+        return None
+    return Path(value)
+
+
 def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     labelled = raw[raw["label"].notna()].copy()
     return time_based_split(
@@ -254,9 +260,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=4096)
     parser.add_argument("--include-seen-history", action="store_true")
     parser.add_argument("--raw-data-dir", type=Path, default=ranking_config.RAW_DATA_DIR)
-    parser.add_argument("--retrieval-model-dir", type=Path, default=None)
-    parser.add_argument("--transform-graph-dir", type=Path, default=None)
-    parser.add_argument("--ann-index-file", type=Path, default=ranking_config.ANN_INDEX_FILE)
+    parser.add_argument("--retrieval-model-dir", type=optional_path, default=None)
+    parser.add_argument("--transform-graph-dir", type=optional_path, default=None)
+    parser.add_argument("--ann-index-file", type=optional_path, default=None)
     return parser.parse_args()
 
 
@@ -274,7 +280,7 @@ def main() -> None:
         raw_data_dir=args.raw_data_dir,
         retrieval_model_dir=args.retrieval_model_dir,
         transform_graph_dir=args.transform_graph_dir,
-        ann_index_file=args.ann_index_file,
+        ann_index_file=args.ann_index_file or ranking_config.ANN_INDEX_FILE,
     )
 
 

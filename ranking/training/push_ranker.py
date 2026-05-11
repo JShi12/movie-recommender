@@ -41,6 +41,54 @@ def validate_thresholds(
         raise RuntimeError("Ranker failed push thresholds: " + "; ".join(failures))
 
 
+def pushed_metrics_file(version_dir: Path) -> Path:
+    return version_dir / ranking_config.PUSHED_END_TO_END_METRICS_FILE_NAME
+
+
+def pushed_version_dirs(pushed_dir: Path) -> list[Path]:
+    if not pushed_dir.exists():
+        return []
+    return [
+        path
+        for path in pushed_dir.iterdir()
+        if path.is_dir() and pushed_metrics_file(path).exists()
+    ]
+
+
+def latest_pushed_metrics_file(pushed_dir: Path) -> Path | None:
+    version_dirs = pushed_version_dirs(pushed_dir)
+    if not version_dirs:
+        return None
+    return pushed_metrics_file(sorted(version_dirs, key=lambda path: path.name)[-1])
+
+
+def load_metrics(metrics_file: Path) -> dict[str, float | int | str | None]:
+    return json.loads(metrics_file.read_text(encoding="utf-8"))
+
+
+def validate_ndcg_improvement(
+    current_metrics: dict[str, float | int | str | None],
+    baseline_metrics_file: Path | None,
+) -> tuple[float | None, float | None]:
+    if baseline_metrics_file is None:
+        return None, None
+
+    current_ndcg_at_10 = _metric(current_metrics, "ndcg@10")
+    baseline_metrics = load_metrics(baseline_metrics_file)
+    baseline_ndcg_at_10 = _metric(baseline_metrics, "ndcg@10")
+    improvement = current_ndcg_at_10 - baseline_ndcg_at_10
+
+    if current_ndcg_at_10 <= baseline_ndcg_at_10:
+        raise RuntimeError(
+            "Ranker failed push improvement check: "
+            f"current ndcg@10={current_ndcg_at_10:.6f} <= "
+            f"baseline ndcg@10={baseline_ndcg_at_10:.6f} "
+            f"from {baseline_metrics_file}"
+        )
+
+    return baseline_ndcg_at_10, improvement
+
+
 def copy_if_exists(source: Path, destination: Path) -> None:
     if source.exists():
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -63,8 +111,13 @@ def push_ranker(
     if not end_to_end_metrics_file.exists():
         raise FileNotFoundError(f"End-to-end metrics not found: {end_to_end_metrics_file}")
 
-    metrics = json.loads(end_to_end_metrics_file.read_text(encoding="utf-8"))
+    metrics = load_metrics(end_to_end_metrics_file)
     validate_thresholds(metrics, min_ndcg_at_10, min_recall_at_100)
+    baseline_metrics_file = latest_pushed_metrics_file(pushed_dir)
+    baseline_ndcg_at_10, ndcg_at_10_improvement = validate_ndcg_improvement(
+        metrics,
+        baseline_metrics_file,
+    )
 
     joblib_model_file = joblib_model_file or model_file.with_suffix(".joblib")
     version = version or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
@@ -94,6 +147,11 @@ def push_ranker(
             ranking_config.PUSHED_METRICS_FILE_NAME if metrics_file.exists() else None
         ),
         "end_to_end_metrics_file": ranking_config.PUSHED_END_TO_END_METRICS_FILE_NAME,
+        "baseline_end_to_end_metrics_file": (
+            str(baseline_metrics_file) if baseline_metrics_file else None
+        ),
+        "baseline_ndcg@10": baseline_ndcg_at_10,
+        "ndcg@10_improvement": ndcg_at_10_improvement,
         "thresholds": {
             "min_ndcg@10": min_ndcg_at_10,
             "min_recall@100": min_recall_at_100,

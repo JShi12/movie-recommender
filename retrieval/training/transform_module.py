@@ -2,14 +2,25 @@
 import tensorflow as tf
 import tensorflow_transform as tft
 
-# Feature names
-USER_ID_KEY = 'user_id'
-MOVIE_ID_KEY = 'movie_id'
-AGE_KEY = 'age'
-GENDER_KEY = 'gender'
-OCCUPATION_KEY = 'occupation'
-GENRES_KEY = 'genres'
-LABEL_KEY = 'label'
+try:
+    from shared.schema import (
+        AGE_KEY,
+        GENDER_KEY,
+        GENRES_KEY,
+        LABEL_KEY,
+        MOVIE_ID_KEY,
+        OCCUPATION_KEY,
+        USER_ID_KEY,
+    )
+except ImportError:
+    # Keep the TFX module loadable when executed from a copied module file.
+    USER_ID_KEY = 'user_id'
+    MOVIE_ID_KEY = 'movie_id'
+    AGE_KEY = 'age'
+    GENDER_KEY = 'gender'
+    OCCUPATION_KEY = 'occupation'
+    GENRES_KEY = 'genres'
+    LABEL_KEY = 'label'
 
 
 def preprocessing_fn(inputs):

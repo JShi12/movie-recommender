@@ -42,6 +42,9 @@ def _module_op(
 def create_ranking_pipeline(
     pipeline_root: str = ranking_config.KUBEFLOW_RANKING_PIPELINE_ROOT,
     raw_data_dir: str = ranking_config.KUBEFLOW_RAW_DATA_DIR,
+    retrieval_model_dir: str = "",
+    transform_graph_dir: str = "",
+    ann_index_file: str = "",
     image: str = ranking_config.KUBEFLOW_RANKING_IMAGE,
     working_dir: str = "/app",
     candidates_per_user: int = ranking_config.RANKING_CANDIDATES_PER_USER,
@@ -63,6 +66,14 @@ def create_ranking_pipeline(
     metrics_file = _path(artifact_dir, ranking_config.METRICS_FILE.name)
     end_to_end_metrics_file = _path(artifact_dir, ranking_config.END_TO_END_METRICS_FILE.name)
     scored_candidates_file = _path(artifact_dir, ranking_config.END_TO_END_CANDIDATES_FILE.name)
+    retrieval_artifact_args = [
+        "--retrieval-model-dir",
+        retrieval_model_dir,
+        "--transform-graph-dir",
+        transform_graph_dir,
+        "--ann-index-file",
+        ann_index_file,
+    ]
 
     prepare_data = _module_op(
         name="prepare-ranking-data",
@@ -78,7 +89,7 @@ def create_ranking_pipeline(
             str(candidates_per_user),
             "--batch-size",
             str(batch_size),
-        ],
+        ] + retrieval_artifact_args,
     )
 
     train_ranker = _module_op(
@@ -135,10 +146,10 @@ def create_ranking_pipeline(
             str(batch_size),
             "--raw-data-dir",
             raw_data_dir,
-        ],
-    ).after(evaluate_ranker)
+        ] + retrieval_artifact_args,
+    ).after(train_ranker)
 
-    _module_op(
+    push_ranker = _module_op(
         name="push-ranker",
         module="ranking.training.push_ranker",
         image=image,
@@ -161,4 +172,5 @@ def create_ranking_pipeline(
             "--min-recall-at-100",
             str(min_recall_at_100),
         ],
-    ).after(evaluate_end_to_end)
+    )
+    push_ranker.after(evaluate_ranker, evaluate_end_to_end)
