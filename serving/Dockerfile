@@ -15,6 +15,7 @@ WORKDIR /app
 # Install deps first for layer caching.
 COPY pyproject.toml README.md ./
 COPY shared/ shared/
+COPY retrieval/ retrieval/
 COPY ranking/ ranking/
 COPY serving/ serving/
 COPY ui/ ui/
