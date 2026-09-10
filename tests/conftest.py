@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import types
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from shared.config import PROJECT_ROOT
 from shared.movielens import GENRE_COLUMNS
 
 FIXTURES = Path(__file__).parent / "fixtures"
+BUNDLE_DIR = PROJECT_ROOT / "serving" / "model_bundle"
 
 
 @pytest.fixture
@@ -54,3 +57,36 @@ def observed_history() -> pd.DataFrame:
 @pytest.fixture
 def rng() -> np.random.Generator:
     return np.random.default_rng(0)
+
+
+@pytest.fixture(scope="session")
+def recommender():
+    """A Recommender over the committed serving bundle.
+
+    Uses the real LightGBM booster when it imports; otherwise a deterministic
+    stub, so the retrieval + feature + API plumbing is still exercised.
+    """
+    import joblib
+
+    from ranking.inference import Recommender
+
+    if not (BUNDLE_DIR / "lgbm_ranker.txt").exists():
+        pytest.skip("serving/model_bundle is not present")
+
+    try:
+        return Recommender.from_bundle(BUNDLE_DIR)
+    except (ImportError, OSError):
+        ann = joblib.load(BUNDLE_DIR / "movie_ann_index.joblib")
+        history = pd.read_parquet(BUNDLE_DIR / "history.parquet")
+        history["label"] = pd.to_numeric(history["label"], errors="coerce")
+        return Recommender(
+            booster=types.SimpleNamespace(predict=lambda x: np.linspace(1.0, 0.0, len(x))),
+            user_embeddings=pd.read_parquet(BUNDLE_DIR / "user_embeddings.parquet"),
+            movie_embeddings=pd.read_parquet(BUNDLE_DIR / "movie_embeddings.parquet"),
+            ann_index=ann["index"],
+            ann_movie_ids=np.asarray(ann["movie_ids"]),
+            movies=pd.read_parquet(BUNDLE_DIR / "movies.parquet"),
+            history=history,
+            model_version="test-stub",
+            metrics={},
+        )
