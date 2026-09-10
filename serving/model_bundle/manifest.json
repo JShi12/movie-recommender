@@ -1,0 +1,15 @@
+{
+  "version": "20260504152612",
+  "source_ranker_dir": "artifacts/ranker/pushed/20260504152612",
+  "files": [
+    "end_to_end_metrics.json",
+    "features.json",
+    "history.parquet",
+    "lgbm_ranker.txt",
+    "metrics.json",
+    "movie_ann_index.joblib",
+    "movie_embeddings.parquet",
+    "movies.parquet",
+    "user_embeddings.parquet"
+  ]
+}
