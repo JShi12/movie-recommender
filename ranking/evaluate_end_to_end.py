@@ -20,12 +20,10 @@ from ranking import config as ranking_config
 from ranking.features import (
     RANKING_FEATURES,
     add_retrieval_embedding_features,
+    fill_candidate_historical_features,
     finalize_features,
 )
-from ranking.training.prepare_ranking_data import (
-    candidate_request_times,
-    fill_candidate_historical_features,
-)
+from ranking.training.prepare_ranking_data import candidate_request_times
 from retrieval.candidates import generate_top_k_candidates
 from shared.config import relpath
 from shared.feature_tables import (

@@ -15,8 +15,8 @@ import pandas as pd
 
 from ranking import config as ranking_config
 from ranking.features import (
-    add_historical_observed_features,
     add_retrieval_embedding_features,
+    fill_candidate_historical_features,
     finalize_features,
 )
 from retrieval.candidates import generate_top_k_candidates
@@ -139,51 +139,6 @@ def build_candidate_ranking_split(
         ["user_id", "candidate_score"],
         ascending=[True, False],
     ).reset_index(drop=True)
-
-
-def fill_candidate_historical_features(frame: pd.DataFrame, history: pd.DataFrame) -> pd.DataFrame:
-    if frame.empty:
-        return frame
-    history_with_stats = add_historical_observed_features(history)
-    latest_user = (
-        history_with_stats.sort_values("timestamp")
-        .groupby("user_id")
-        .tail(1)[
-            [
-                "user_id",
-                "user_avg_rating_before",
-                "user_rating_count_before",
-                "user_like_rate_before",
-                "user_activity_gap_log",
-            ]
-        ]
-    )
-    latest_movie = (
-        history_with_stats.sort_values("timestamp")
-        .groupby("movie_id")
-        .tail(1)[
-            [
-                "movie_id",
-                "movie_avg_rating_before",
-                "movie_rating_count_before",
-                "movie_like_rate_before",
-                "movie_popularity_before",
-            ]
-        ]
-    )
-    frame = frame.merge(latest_user, on="user_id", how="left")
-    frame = frame.merge(latest_movie, on="movie_id", how="left")
-    defaults = {
-        "user_avg_rating_before": history["rating"].mean(),
-        "user_rating_count_before": 0,
-        "user_like_rate_before": history["label"].mean(),
-        "user_activity_gap_log": 0,
-        "movie_avg_rating_before": history["rating"].mean(),
-        "movie_rating_count_before": 0,
-        "movie_like_rate_before": history["label"].mean(),
-        "movie_popularity_before": 0,
-    }
-    return frame.fillna(defaults)
 
 
 def prepare_ranking_data(
