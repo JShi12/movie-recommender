@@ -13,18 +13,19 @@ if str(PROJECT_ROOT) not in sys.path:
 import numpy as np
 import pandas as pd
 
-from retrieval.candidates import generate_top_k_candidates
-from shared.movielens import SplitFractions
-from shared.movielens import time_based_split
 from ranking import config as ranking_config
 from ranking.features import (
-    add_retrieval_embedding_features,
     add_historical_observed_features,
+    add_retrieval_embedding_features,
     finalize_features,
+)
+from retrieval.candidates import generate_top_k_candidates
+from shared.feature_tables import (
     load_joined_movielens,
     movie_feature_table,
     user_feature_table,
 )
+from shared.movielens import SplitFractions, time_based_split
 
 
 def optional_path(value: str | None) -> Path | None:
@@ -33,7 +34,9 @@ def optional_path(value: str | None) -> Path | None:
     return Path(value)
 
 
-def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split_observed_interactions(
+    raw: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     labelled = raw[raw["rating"].notna()].copy()
     return time_based_split(
         labelled,
@@ -105,9 +108,9 @@ def build_candidate_ranking_split(
     target_users = observed_split["user_id"].unique()
     frame = candidates[candidates["user_id"].isin(target_users)].copy()
 
-    observed_labels = observed_split[
-        ["user_id", "movie_id", "rating", "timestamp"]
-    ].rename(columns={"timestamp": "observed_timestamp"})
+    observed_labels = observed_split[["user_id", "movie_id", "rating", "timestamp"]].rename(
+        columns={"timestamp": "observed_timestamp"}
+    )
     frame = frame.merge(observed_labels, on=["user_id", "movie_id"], how="left")
     frame = frame.merge(movies, on="movie_id", how="left")
     frame = frame.merge(users, on="user_id", how="left")

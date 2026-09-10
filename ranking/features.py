@@ -2,33 +2,25 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-from pathlib import Path
-
-from shared.feature_tables import load_joined_movielens
-from shared.feature_tables import movie_feature_table
-from shared.feature_tables import user_feature_table
-from shared.movielens import GENRE_COLUMNS
 from ranking import config as ranking_config
-
+from shared.movielens import GENRE_COLUMNS
 
 USER_RETRIEVAL_VECTOR_FEATURES = [
-    f"user_retrieval_vector_{idx:02d}"
-    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
+    f"user_retrieval_vector_{idx:02d}" for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 MOVIE_RETRIEVAL_VECTOR_FEATURES = [
-    f"movie_retrieval_vector_{idx:02d}"
-    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
+    f"movie_retrieval_vector_{idx:02d}" for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 RETRIEVAL_VECTOR_PRODUCT_FEATURES = [
-    f"retrieval_vector_product_{idx:02d}"
-    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
+    f"retrieval_vector_product_{idx:02d}" for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 RETRIEVAL_VECTOR_ABS_DIFF_FEATURES = [
-    f"retrieval_vector_abs_diff_{idx:02d}"
-    for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
+    f"retrieval_vector_abs_diff_{idx:02d}" for idx in range(ranking_config.FINAL_EMBEDDING_DIM)
 ]
 
 BASE_RANKING_FEATURES = [
@@ -57,6 +49,7 @@ RANKING_FEATURES = (
     + RETRIEVAL_VECTOR_ABS_DIFF_FEATURES
 )
 
+
 def add_context_features(frame: pd.DataFrame) -> pd.DataFrame:
     frame = frame.copy()
     dt = pd.to_datetime(frame["timestamp"], unit="s")
@@ -68,9 +61,7 @@ def add_context_features(frame: pd.DataFrame) -> pd.DataFrame:
 def add_historical_observed_features(frame: pd.DataFrame) -> pd.DataFrame:
     """Add time-aware stats for observed interactions."""
     frame = frame.sort_values(["timestamp", "user_id", "movie_id"]).copy()
-    frame["_is_like"] = (
-        frame["rating"] >= ranking_config.POSITIVE_RATING_THRESHOLD
-    ).astype(float)
+    frame["_is_like"] = (frame["rating"] >= ranking_config.POSITIVE_RATING_THRESHOLD).astype(float)
 
     user_group = frame.groupby("user_id", sort=False)
     frame["user_rating_count_before"] = user_group.cumcount()
@@ -85,7 +76,7 @@ def add_historical_observed_features(frame: pd.DataFrame) -> pd.DataFrame:
     frame["previous_user_timestamp"] = user_group["timestamp"].shift(1)
     frame["user_activity_gap_log"] = np.log1p(
         (frame["timestamp"] - frame["previous_user_timestamp"]).clip(lower=0)
-    ) # log(1+x)
+    )  # log(1+x)
 
     movie_group = frame.groupby("movie_id", sort=False)
     frame["movie_rating_count_before"] = movie_group.cumcount()

@@ -16,21 +16,24 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-from retrieval.candidates import generate_top_k_candidates
-from shared.config import relpath
-from shared.movielens import SplitFractions
-from shared.movielens import time_based_split
 from ranking import config as ranking_config
 from ranking.features import (
     RANKING_FEATURES,
     add_retrieval_embedding_features,
     finalize_features,
+)
+from ranking.training.prepare_ranking_data import (
+    candidate_request_times,
+    fill_candidate_historical_features,
+)
+from retrieval.candidates import generate_top_k_candidates
+from shared.config import relpath
+from shared.feature_tables import (
     load_joined_movielens,
     movie_feature_table,
     user_feature_table,
 )
-from ranking.training.prepare_ranking_data import fill_candidate_historical_features
-from ranking.training.prepare_ranking_data import candidate_request_times
+from shared.movielens import SplitFractions, time_based_split
 
 
 def optional_path(value: str | None) -> Path | None:
@@ -39,7 +42,9 @@ def optional_path(value: str | None) -> Path | None:
     return Path(value)
 
 
-def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split_observed_interactions(
+    raw: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     labelled = raw[raw["label"].notna()].copy()
     return time_based_split(
         labelled,
@@ -173,7 +178,9 @@ def evaluate_ranked_candidates(
             micro_hits += len(hits)
             positive_count += len(positive_movies)
 
-            gains = np.asarray([1.0 if movie_id in positive_movies else 0.0 for movie_id in top_movies])
+            gains = np.asarray(
+                [1.0 if movie_id in positive_movies else 0.0 for movie_id in top_movies]
+            )
             discounts = 1.0 / np.log2(np.arange(2, len(gains) + 2))
             dcg = float(np.sum(gains * discounts))
             ideal_hits = min(k, len(positive_movies))
