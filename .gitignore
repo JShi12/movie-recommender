@@ -26,6 +26,14 @@ env/
 ENV/
 .venv
 
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb_checkpoints/
@@ -48,27 +56,35 @@ models/
 serving_model/
 saved_models/
 
+# Experiment tracking
+mlruns/
+
 # Logs
 logs/
 *.log
 tensorboard_logs/
 
-# IDE
+# IDE / assistant tooling
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.claude/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Kubeflow
-*.yaml
-movielens-recommender-pipeline.yaml
+# Compiled Kubeflow pipeline packages (regenerate with `make compile-*`)
+/movielens-recommender-pipeline.yaml
+/movielens-ranking-pipeline.yaml
+*pipeline*.yaml
 
 # Temporary files
 tmp/
 temp/
 *.tmp
+
+# Local assistant context (not project substance)
+/CLAUDE.md
