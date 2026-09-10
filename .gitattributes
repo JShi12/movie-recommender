@@ -1,0 +1,22 @@
+# Normalise line endings: keep LF in the repo, check out native on Windows.
+* text=auto eol=lf
+
+*.py   text eol=lf
+*.md   text eol=lf
+*.toml text eol=lf
+*.cfg  text eol=lf
+*.txt  text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+Makefile text eol=lf
+
+# Binary assets — never touch.
+*.joblib binary
+*.parquet binary
+*.whl binary
+*.png binary
+*.jpg binary
+*.gif binary
+
+# Notebooks: treat as text, but collapse diffs to the interesting bits.
+*.ipynb text eol=lf
