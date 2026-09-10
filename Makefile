@@ -32,6 +32,9 @@ eval: ## Run retrieval, ranking, and end-to-end offline evaluation
 	$(PYTHON) -m ranking.evaluate_ranker
 	$(PYTHON) -m ranking.evaluate_end_to_end
 
+bundle: ## Rebuild serving/model_bundle/ from the latest artifacts (needs [pipeline] outputs)
+	$(PYTHON) -m serving.build_bundle
+
 test: ## Run the fast unit tests (no TFX/TensorFlow required)
 	$(PYTHON) -m pytest -m "not pipeline"
 
