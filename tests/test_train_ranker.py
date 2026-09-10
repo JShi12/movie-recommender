@@ -40,10 +40,9 @@ class TestSortedForRanking:
         assert u1 == sorted(u1, reverse=True)
 
     def test_groups_are_contiguous_after_sorting(self):
-        ordered = sorted_for_ranking(_frame()).reset_index(drop=True)
-        # each user's rows form one unbroken block, matching group_counts order
-        blocks = [
-            len(list(g))
-            for _, g in ordered.groupby((ordered["user_id"] != ordered["user_id"].shift()).cumsum())
-        ]
-        assert blocks == group_counts(_frame())
+        from itertools import groupby
+
+        users = sorted_for_ranking(_frame())["user_id"].tolist()
+        assert users == sorted(users)  # each user's rows form one unbroken block
+        run_lengths = [sum(1 for _ in g) for _, g in groupby(users)]
+        assert run_lengths == group_counts(_frame())
