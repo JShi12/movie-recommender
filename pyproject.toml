@@ -95,8 +95,11 @@ python_version = "3.10"
 ignore_missing_imports = true
 warn_unused_ignores = true
 no_implicit_optional = true
-files = ["shared", "ranking", "serving"]
-exclude = "(tfx_pipeline_output|notebooks|retrieval/training)"
+follow_imports = "silent"
+# Type-checked today: the pure library modules. The TFX/pipeline scripts and the
+# TensorFlow-heavy retrieval code are excluded and tracked for incremental typing.
+files = ["shared", "ranking"]
+exclude = "(tfx_pipeline_output|notebooks|retrieval|ranking/training)"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

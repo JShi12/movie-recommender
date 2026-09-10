@@ -1,0 +1,5 @@
+# Bulk / mechanical changes to skip in `git blame`.
+# Enable locally with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply ruff formatter and tighten lint config
+ce90d66db4c1b347e1d7103fbed5806603e1534c

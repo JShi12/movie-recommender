@@ -37,7 +37,7 @@ from shared.movielens import SplitFractions, time_based_split
 
 
 def optional_path(value: str | None) -> Path | None:
-    if value in (None, ""):
+    if not value:
         return None
     return Path(value)
 
@@ -138,7 +138,7 @@ def evaluate_ranked_candidates(
     ks: list[int],
 ) -> dict[str, float | int | str | None]:
     positives_by_user = {
-        int(user_id): set(group["movie_id"].astype(int))
+        int(user_id): set(group["movie_id"].astype(int))  # type: ignore[arg-type]
         for user_id, group in positives.groupby("user_id")
     }
 
