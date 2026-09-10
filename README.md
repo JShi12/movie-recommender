@@ -17,6 +17,8 @@ A production-shaped **retrieval → ranking** recommender on MovieLens 100k:
 Everything runs from a fresh clone with `make setup && make demo` — a ~2.4 MB model
 bundle is committed so the demo needs no training.
 
+![Streamlit demo: a user's rating history beside its ranked recommendations](docs/img/demo.png)
+
 ## Architecture
 
 ```mermaid
