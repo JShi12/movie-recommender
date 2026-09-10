@@ -159,8 +159,8 @@ def evaluate_retrieval(
     metrics = evaluate_top_k(candidates, positives, catalog_size=len(movies), ks=ks)
     metrics["split"] = split
     metrics["max_k"] = max(ks)
-    metrics["model_dir"] = str(latest_pushed_model_dir())
-    metrics["candidates_file"] = str(candidates_file)
+    metrics["model_dir"] = config.relpath(latest_pushed_model_dir())
+    metrics["candidates_file"] = config.relpath(candidates_file)
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(json.dumps(metrics, indent=2), encoding="utf-8")

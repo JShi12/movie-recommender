@@ -17,6 +17,7 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 
 from retrieval.candidates import generate_top_k_candidates
+from shared.config import relpath
 from shared.movielens import SplitFractions
 from shared.movielens import time_based_split
 from ranking import config as ranking_config
@@ -224,11 +225,11 @@ def evaluate_end_to_end(
     metrics = evaluate_ranked_candidates(frame, positives, ks)
     metrics["split"] = split
     metrics["candidates_per_user"] = candidates_per_user
-    metrics["model_file"] = str(model_file)
+    metrics["model_file"] = relpath(model_file)
     metrics["include_seen_history"] = include_seen_history
-    metrics["raw_data_dir"] = str(raw_data_dir)
-    metrics["retrieval_model_dir"] = str(retrieval_model_dir) if retrieval_model_dir else None
-    metrics["transform_graph_dir"] = str(transform_graph_dir) if transform_graph_dir else None
+    metrics["raw_data_dir"] = relpath(raw_data_dir)
+    metrics["retrieval_model_dir"] = relpath(retrieval_model_dir) if retrieval_model_dir else None
+    metrics["transform_graph_dir"] = relpath(transform_graph_dir) if transform_graph_dir else None
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
