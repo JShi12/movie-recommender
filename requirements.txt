@@ -1,9 +1,10 @@
-# Simplified TFX installation - Python 3.9-3.10 only
-# Use this file only with `venv\\Scripts\\python.exe` in this repo.
+# Pinned lock for the TFX 1.14 retrieval pipeline ("[pipeline]" extra) - Python 3.9-3.10 only.
 # Installing it with Python 3.11+ will fail because TFX 1.14 is not supported.
 #
-# This file intentionally prefers the legacy TFX 1.14 compatibility window over
-# newer notebook/package-manager constraints.
+# For everything else (ranking, evaluation, serving API, UI, tests) use modern Python:
+#     pip install -e ".[dev,serve,ui]"
+# See pyproject.toml for the dependency groups. This file is kept in sync with the
+# "[pipeline]" extra and intentionally prefers the legacy TFX 1.14 compatibility window.
 
 # Core TFX stack
 tfx==1.14.0

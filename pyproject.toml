@@ -1,0 +1,104 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "movielens-recommender"
+version = "0.1.0"
+description = "Two-stage MovieLens recommender: TFX two-tower retrieval + LightGBM LambdaRank reranking, with a FastAPI serving demo."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jing Shi" }]
+keywords = ["recommender-systems", "learning-to-rank", "two-tower", "tfx", "lightgbm", "fastapi"]
+
+# Core runtime: the ranking stage, offline metric code, and the serving/inference
+# path. Deliberately free of the TFX/TensorFlow pin so it installs on modern Python.
+dependencies = [
+    "numpy>=1.24,<2.0",
+    "pandas>=1.5,<3.0",
+    "scipy>=1.10",
+    "scikit-learn>=1.2",
+    "lightgbm>=4.0",
+    "joblib>=1.3",
+    "pyarrow>=10.0",
+]
+
+[project.optional-dependencies]
+# Full TFX 1.14 retrieval pipeline. TFX 1.14 does not support Python 3.11+,
+# so install this extra under Python 3.9 or 3.10 only.
+pipeline = [
+    "tfx==1.14.0",
+    "tensorflow==2.13.0",
+    "tensorflow-transform==1.14.0",
+    "tensorflow-model-analysis==0.45.0",
+    "tensorflow-data-validation==1.14.0",
+    "tensorflow-metadata==1.14.0",
+    "tfx-bsl==1.14.0",
+    "ml-metadata==1.14.0",
+    "ml-pipelines-sdk==1.14.0",
+    "apache-beam==2.47.0",
+    "kfp==1.8.22",
+    "protobuf<4",
+    "keras-tuner==1.4.7",
+    "pyfarmhash==0.3.2",
+]
+
+# FastAPI inference service. The demo serves from precomputed tower embeddings +
+# an ANN index + the LightGBM booster, so it needs no TensorFlow at request time.
+serve = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+]
+
+# Streamlit demo UI.
+ui = [
+    "streamlit>=1.30",
+    "requests>=2.31",
+]
+
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "pre-commit>=3.6",
+    "pandas-stubs",
+    "types-requests",
+]
+
+[project.urls]
+Repository = "https://github.com/JShi12/movie-recommender"
+
+[tool.setuptools.packages.find]
+include = ["shared*", "retrieval*", "ranking*", "serving*"]
+exclude = ["tfx_pipeline_output*", "notebooks*", "tests*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = ["tfx_pipeline_output", "tfx_pipeline_output_old_*", "notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.lint.per-file-ignores]
+"retrieval/training/trainer_module.py" = ["F401", "E402"]  # TFX copies this module standalone
+"**/pipeline_definition.py" = ["E402"]  # sys.path shim precedes imports by design
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+files = ["shared", "ranking", "serving"]
+exclude = "(tfx_pipeline_output|notebooks|retrieval/training)"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "pipeline: slow tests that require the [pipeline] extra (TFX/TensorFlow)",
+]
