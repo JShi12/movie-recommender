@@ -4,7 +4,7 @@
 PYTHON ?= python
 
 .DEFAULT_GOAL := help
-.PHONY: help setup setup-pipeline data retrieval ranking eval test test-pipeline lint format typecheck serve ui demo clean
+.PHONY: help setup setup-pipeline data retrieval ranking eval bundle compile-pipelines test test-pipeline lint format typecheck serve ui demo clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -34,6 +34,10 @@ eval: ## Run retrieval, ranking, and end-to-end offline evaluation
 
 bundle: ## Rebuild serving/model_bundle/ from the latest artifacts (needs [pipeline] outputs)
 	$(PYTHON) -m serving.build_bundle
+
+compile-pipelines: ## Compile both Kubeflow Pipelines packages (needs [pipeline])
+	$(PYTHON) -m retrieval.training.compile_kubeflow_pipeline
+	$(PYTHON) -m ranking.training.compile_kubeflow_pipeline
 
 test: ## Run the fast unit tests (no TFX/TensorFlow required)
 	$(PYTHON) -m pytest -m "not pipeline"
