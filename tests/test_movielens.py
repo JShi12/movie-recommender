@@ -63,23 +63,37 @@ class TestTimeBasedSplit:
         train, val, test = time_based_split(_chronological(40), SplitFractions(0.8, 0.1))
         assert train["timestamp"].max() < val["timestamp"].min() < test["timestamp"].min()
 
-    @pytest.mark.xfail(
-        reason="Leakage guards use '>' not '>=', so a timestamp straddling the "
-        "val/test boundary is not caught. Tracked as a follow-up fix.",
-        strict=True,
-    )
-    def test_boundary_timestamp_tie_should_be_flagged_as_leakage(self):
-        # Rows 16-19 all share timestamp 999, so it lands in BOTH val and test.
+    def test_boundary_timestamp_never_spans_two_partitions(self):
+        # Timestamp 25 straddles the nominal 90% (val/test) row boundary; the
+        # whole group must land in val, not be split across val and test.
+        ts = list(range(24)) + [24, 24, 25, 25, 26, 26]
         frame = pd.DataFrame(
+            {
+                "user_id": range(30),
+                "movie_id": range(30),
+                "rating": [4] * 30,
+                "timestamp": ts,
+            }
+        )
+        train, val, test = time_based_split(frame, SplitFractions(0.8, 0.1))
+        assert train["timestamp"].max() < val["timestamp"].min()
+        assert val["timestamp"].max() < test["timestamp"].min()
+        # No timestamp appears in more than one partition.
+        assert not (set(train["timestamp"]) & set(val["timestamp"]))
+        assert not (set(val["timestamp"]) & set(test["timestamp"]))
+        assert 25 in set(val["timestamp"]) and 25 not in set(test["timestamp"])
+
+    def test_raises_when_timestamps_too_concentrated_to_split(self):
+        flat = pd.DataFrame(
             {
                 "user_id": range(20),
                 "movie_id": range(20),
                 "rating": [4] * 20,
-                "timestamp": list(range(16)) + [999] * 4,
+                "timestamp": [42] * 20,
             }
         )
-        with pytest.raises(ValueError, match="leakage"):
-            time_based_split(frame, SplitFractions(0.8, 0.1))
+        with pytest.raises(ValueError, match="empty (validation|test) partition"):
+            time_based_split(flat, SplitFractions(0.8, 0.1))
 
 
 class TestActiveGenres:

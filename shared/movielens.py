@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from shared import config
@@ -75,22 +76,46 @@ def time_based_split(
     data: pd.DataFrame,
     fractions: SplitFractions = SplitFractions(),
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Split records chronologically into train/validation/test dataframes."""
+    """Split records chronologically into train/validation/test dataframes.
+
+    A single timestamp never spans two partitions: rows sharing the timestamp
+    that lands on a nominal row-count boundary are all assigned to the earlier
+    partition. This keeps the split genuinely leak-free for time-based eval.
+    """
     if fractions.train <= 0 or fractions.validation <= 0 or fractions.test <= 0:
         raise ValueError(f"Invalid split fractions: {fractions}")
 
     sorted_data = data.sort_values("timestamp").reset_index(drop=True)
+    timestamps = sorted_data["timestamp"].to_numpy()
     n_total = len(sorted_data)
-    n_train = int(n_total * fractions.train)
-    n_val = int(n_total * fractions.validation)
 
-    train = sorted_data.iloc[:n_train]
-    validation = sorted_data.iloc[n_train : n_train + n_val]
-    test = sorted_data.iloc[n_train + n_val :]
+    def _cut(fraction_end: float) -> int:
+        nominal = int(n_total * fraction_end)
+        if nominal <= 0:
+            return 0
+        if nominal >= n_total:
+            return n_total
+        # Advance past every row that shares the boundary timestamp.
+        return int(np.searchsorted(timestamps, timestamps[nominal - 1], side="right"))
 
-    if train["timestamp"].max() > validation["timestamp"].min():
+    train_end = _cut(fractions.train)
+    val_end = max(_cut(fractions.train + fractions.validation), train_end)
+
+    train = sorted_data.iloc[:train_end]
+    validation = sorted_data.iloc[train_end:val_end]
+    test = sorted_data.iloc[val_end:]
+
+    for name, part in (("train", train), ("validation", validation), ("test", test)):
+        if part.empty:
+            raise ValueError(
+                f"Chronological split produced an empty {name} partition; "
+                "timestamps are too concentrated for the requested fractions."
+            )
+    # Whole timestamp groups stay together, so these must hold; keep them as an
+    # invariant check on the cut logic above.
+    if train["timestamp"].max() >= validation["timestamp"].min():
         raise ValueError("Temporal leakage detected between train and validation")
-    if validation["timestamp"].max() > test["timestamp"].min():
+    if validation["timestamp"].max() >= test["timestamp"].min():
         raise ValueError("Temporal leakage detected between validation and test")
 
     return train, validation, test
