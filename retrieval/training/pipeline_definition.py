@@ -44,9 +44,7 @@ def create_eval_config() -> tfma.EvalConfig:
                     tfma.MetricConfig(
                         class_name="AUC",
                         threshold=tfma.MetricThreshold(
-                            value_threshold=tfma.GenericValueThreshold(
-                                lower_bound={"value": 0.6}
-                            ),
+                            value_threshold=tfma.GenericValueThreshold(lower_bound={"value": 0.6}),
                             change_threshold=tfma.GenericChangeThreshold(
                                 direction=tfma.MetricDirection.HIGHER_IS_BETTER,
                                 absolute={"value": 0.0},
@@ -61,9 +59,7 @@ def create_eval_config() -> tfma.EvalConfig:
                     tfma.MetricConfig(
                         class_name="Precision",
                         threshold=tfma.MetricThreshold(
-                            value_threshold=tfma.GenericValueThreshold(
-                                lower_bound={"value": 0.6}
-                            )
+                            value_threshold=tfma.GenericValueThreshold(lower_bound={"value": 0.6})
                         ),
                     ),
                 ]
@@ -138,9 +134,7 @@ def create_pipeline(
         model=trainer.outputs["model"],
         model_blessing=evaluator.outputs["blessing"],
         push_destination=pusher_pb2.PushDestination(
-            filesystem=pusher_pb2.PushDestination.Filesystem(
-                base_directory=str(serving_model_dir)
-            )
+            filesystem=pusher_pb2.PushDestination.Filesystem(base_directory=str(serving_model_dir))
         ),
     )
 
@@ -158,8 +152,6 @@ def create_pipeline(
             evaluator,
             pusher,
         ],
-        metadata_connection_config=metadata.sqlite_metadata_connection_config(
-            str(metadata_path)
-        ),
+        metadata_connection_config=metadata.sqlite_metadata_connection_config(str(metadata_path)),
         enable_cache=True,
     )

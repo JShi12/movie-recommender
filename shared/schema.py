@@ -19,4 +19,3 @@ MOVIE_FEATURE_KEYS = [
     MOVIE_ID_KEY,
     GENRES_KEY,
 ]
-

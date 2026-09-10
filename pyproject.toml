@@ -81,12 +81,14 @@ target-version = "py39"
 extend-exclude = ["tfx_pipeline_output", "tfx_pipeline_output_old_*", "notebooks"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
-ignore = ["E501"]  # line length handled by formatter
+select = ["E", "F", "I", "UP", "C4"]
+ignore = [
+    "E501",  # line length handled by the formatter
+    "E402",  # scripts intentionally insert PROJECT_ROOT on sys.path before imports
+]
 
 [tool.ruff.lint.per-file-ignores]
-"retrieval/training/trainer_module.py" = ["F401", "E402"]  # TFX copies this module standalone
-"**/pipeline_definition.py" = ["E402"]  # sys.path shim precedes imports by design
+"retrieval/training/trainer_module.py" = ["F401"]  # TFX copies this module standalone
 
 [tool.mypy]
 python_version = "3.10"

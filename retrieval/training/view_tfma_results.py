@@ -171,8 +171,7 @@ def print_baseline_comparison(eval_result) -> None:
             print(f"{name:<38} {current_value:>12.6f} {'n/a':>12} {'n/a':>12}")
         else:
             print(
-                f"{name:<38} {current_value:>12.6f} "
-                f"{current_value - delta:>12.6f} {delta:>12.6f}"
+                f"{name:<38} {current_value:>12.6f} {current_value - delta:>12.6f} {delta:>12.6f}"
             )
 
 

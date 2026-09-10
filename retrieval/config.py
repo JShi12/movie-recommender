@@ -1,8 +1,7 @@
 """Configuration for the retrieval stage and TFX pipeline."""
 
-from shared.config import *  # noqa: F403
 from shared import config as shared_config
-
+from shared.config import *  # noqa: F403
 
 RETRIEVAL_DATA_DIR = shared_config.DATA_ROOT / "retrieval"
 PIPELINE_ROOT = shared_config.PROJECT_ROOT / "tfx_pipeline_output"
@@ -13,9 +12,7 @@ RETRIEVAL_ARTIFACT_DIR = shared_config.PROJECT_ROOT / "artifacts" / "retrieval"
 TRANSFORM_MODULE_FILE = (
     shared_config.PROJECT_ROOT / "retrieval" / "training" / "transform_module.py"
 )
-TRAINER_MODULE_FILE = (
-    shared_config.PROJECT_ROOT / "retrieval" / "training" / "trainer_module.py"
-)
+TRAINER_MODULE_FILE = shared_config.PROJECT_ROOT / "retrieval" / "training" / "trainer_module.py"
 
 PIPELINE_NAME = "movielens_recommender_pipeline"
 
@@ -43,9 +40,7 @@ MOVIE_EMBEDDINGS_FILE = RETRIEVAL_ARTIFACT_DIR / "movie_embeddings.parquet"
 USER_EMBEDDINGS_FILE = RETRIEVAL_ARTIFACT_DIR / "user_embeddings.parquet"
 ANN_INDEX_FILE = RETRIEVAL_ARTIFACT_DIR / "movie_ann_index.joblib"
 RETRIEVAL_METRICS_FILE = RETRIEVAL_ARTIFACT_DIR / "retrieval_metrics.json"
-RETRIEVAL_EVAL_CANDIDATES_FILE = (
-    RETRIEVAL_ARTIFACT_DIR / "retrieval_eval_candidates.parquet"
-)
+RETRIEVAL_EVAL_CANDIDATES_FILE = RETRIEVAL_ARTIFACT_DIR / "retrieval_eval_candidates.parquet"
 
 TRAINER_HYPERPARAMETERS = {
     "batch_size": BATCH_SIZE,
@@ -64,8 +59,6 @@ TRAINER_HYPERPARAMETERS = {
 }
 
 KUBEFLOW_PIPELINE_NAME = "movielens-recommender-pipeline"
-KUBEFLOW_PIPELINE_FILE = (
-    shared_config.PROJECT_ROOT / f"{KUBEFLOW_PIPELINE_NAME}.yaml"
-)
+KUBEFLOW_PIPELINE_FILE = shared_config.PROJECT_ROOT / f"{KUBEFLOW_PIPELINE_NAME}.yaml"
 KUBEFLOW_NAMESPACE = "kubeflow"
 KUBEFLOW_TFX_IMAGE = "tensorflow/tfx:1.14.0"

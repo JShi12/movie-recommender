@@ -5,7 +5,6 @@ from pathlib import Path
 from retrieval import config as retrieval_config
 from shared import config as shared_config
 
-
 PROJECT_ROOT = shared_config.PROJECT_ROOT
 RAW_DATA_DIR = shared_config.RAW_DATA_DIR
 TRAIN_FRACTION = shared_config.TRAIN_FRACTION
@@ -80,7 +79,10 @@ def latest_numeric_subdir(parent: Path) -> Path:
 
 
 def latest_retrieval_model_dir() -> Path:
-    return latest_numeric_subdir(retrieval_config.PIPELINE_ROOT / "Trainer" / "model") / "Format-Serving"
+    return (
+        latest_numeric_subdir(retrieval_config.PIPELINE_ROOT / "Trainer" / "model")
+        / "Format-Serving"
+    )
 
 
 def latest_transform_graph_dir() -> Path:

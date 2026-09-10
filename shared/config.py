@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -17,6 +16,7 @@ def relpath(path: "str | Path") -> str:
         return resolved.relative_to(PROJECT_ROOT).as_posix()
     except ValueError:
         return resolved.as_posix()
+
 
 RAW_DATA_DIR = PROJECT_ROOT / "ml-100k"
 DATA_ROOT = PROJECT_ROOT / "data"

@@ -22,11 +22,12 @@ import pandas as pd
 from retrieval import config
 from retrieval.candidates import generate_top_k_candidates, latest_pushed_model_dir
 from shared.feature_tables import load_joined_movielens, movie_feature_table, user_feature_table
-from shared.movielens import SplitFractions
-from shared.movielens import time_based_split
+from shared.movielens import SplitFractions, time_based_split
 
 
-def split_observed_interactions(raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split_observed_interactions(
+    raw: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Return chronological train/validation/test splits for labelled interactions."""
     labelled = raw[raw["label"].notna()].copy()
     return time_based_split(
@@ -101,9 +102,7 @@ def evaluate_top_k(
         metrics[f"hit_rate@{k}"] = float(np.mean(user_hits))
         metrics[f"candidate_coverage@{k}"] = float(unique_candidates / catalog_size)
         metrics[f"unique_candidates@{k}"] = unique_candidates
-        metrics[f"mean_positive_rank@{k}"] = (
-            float(np.mean(found_ranks)) if found_ranks else None
-        )
+        metrics[f"mean_positive_rank@{k}"] = float(np.mean(found_ranks)) if found_ranks else None
 
     return metrics
 

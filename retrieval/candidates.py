@@ -12,7 +12,6 @@ import tensorflow_transform as tft
 
 from retrieval import config
 
-
 RETRIEVAL_LOGIT_SCALE = 5.0
 
 
@@ -46,8 +45,7 @@ class RetrievalCandidateScorer:
     @property
     def has_embedding_signatures(self) -> bool:
         return (
-            self.user_embedding_signature is not None
-            and self.movie_embedding_signature is not None
+            self.user_embedding_signature is not None and self.movie_embedding_signature is not None
         )
 
     def score_pairs(
@@ -83,12 +81,12 @@ class RetrievalCandidateScorer:
             transformed = self._transform_batch(users.iloc[start:end], movies.iloc[start:end])
             user_serialized = self._serialize_user_transformed(transformed, end - start)
             movie_serialized = self._serialize_movie_transformed(transformed, end - start)
-            user_batch = self.user_embedding_signature(
-                examples=tf.constant(user_serialized)
-            )["user_embedding"].numpy()
-            movie_batch = self.movie_embedding_signature(
-                examples=tf.constant(movie_serialized)
-            )["movie_embedding"].numpy()
+            user_batch = self.user_embedding_signature(examples=tf.constant(user_serialized))[
+                "user_embedding"
+            ].numpy()
+            movie_batch = self.movie_embedding_signature(examples=tf.constant(movie_serialized))[
+                "movie_embedding"
+            ].numpy()
             user_vectors.append(user_batch)
             movie_vectors.append(movie_batch)
             scores.append(_sigmoid_scaled_dot(np.sum(user_batch * movie_batch, axis=1)))
@@ -103,7 +101,9 @@ class RetrievalCandidateScorer:
     ) -> np.ndarray:
         if not self.has_embedding_signatures:
             if users is None:
-                raise ValueError("users are required when using an older model without embedding signatures")
+                raise ValueError(
+                    "users are required when using an older model without embedding signatures"
+                )
             _, movie_vectors, _ = self._embedding_pairs_from_variables(users, movies, batch_size)
             return movie_vectors
 
@@ -127,7 +127,9 @@ class RetrievalCandidateScorer:
     ) -> np.ndarray:
         if not self.has_embedding_signatures:
             if movies is None:
-                raise ValueError("movies are required when using an older model without embedding signatures")
+                raise ValueError(
+                    "movies are required when using an older model without embedding signatures"
+                )
             user_vectors, _, _ = self._embedding_pairs_from_variables(users, movies, batch_size)
             return user_vectors
 
@@ -180,8 +182,7 @@ class RetrievalCandidateScorer:
     def _load_embedding_variables(self) -> dict[str, np.ndarray]:
         if self._embedding_variables is None:
             self._embedding_variables = {
-                variable.name.split(":")[0]: variable.numpy()
-                for variable in self.model.variables
+                variable.name.split(":")[0]: variable.numpy() for variable in self.model.variables
             }
         return self._embedding_variables
 
@@ -362,9 +363,7 @@ def generate_top_k_candidates_bruteforce(
     movies = movies.reset_index(drop=True)
 
     if users.empty or movies.empty:
-        return pd.DataFrame(
-            columns=["user_id", "movie_id", "candidate_score", "retrieval_rank"]
-        )
+        return pd.DataFrame(columns=["user_id", "movie_id", "candidate_score", "retrieval_rank"])
 
     top_k = min(k, len(movies))
     movie_vectors = scorer.movie_embeddings(movies, batch_size=batch_size)

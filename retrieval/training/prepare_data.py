@@ -21,10 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from retrieval import config
-from shared.movielens import SplitFractions
-from shared.movielens import active_genres
-from shared.movielens import load_movielens_100k
-from shared.movielens import time_based_split
+from shared.movielens import SplitFractions, active_genres, load_movielens_100k, time_based_split
 
 
 def build_model_dataframe(
@@ -36,9 +33,7 @@ def build_model_dataframe(
     merged = ratings.merge(users, on="user_id", how="left")
     merged = merged.merge(movies, on="movie_id", how="left")
     merged = merged[merged["rating"] != config.NEUTRAL_RATING].copy()
-    merged["label"] = (
-        merged["rating"] >= config.POSITIVE_RATING_THRESHOLD
-    ).astype(int)
+    merged["label"] = (merged["rating"] >= config.POSITIVE_RATING_THRESHOLD).astype(int)
     merged["genres"] = merged.apply(active_genres, axis=1)
 
     feature_cols = [

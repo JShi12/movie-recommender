@@ -7,9 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from shared import config
-from shared.movielens import GENRE_COLUMNS
-from shared.movielens import active_genres
-from shared.movielens import load_movielens_100k
+from shared.movielens import GENRE_COLUMNS, active_genres, load_movielens_100k
 
 
 def load_joined_movielens(raw_data_dir: Path = config.RAW_DATA_DIR) -> pd.DataFrame:
@@ -30,6 +28,7 @@ def load_joined_movielens(raw_data_dir: Path = config.RAW_DATA_DIR) -> pd.DataFr
     data.loc[data["rating"] >= config.POSITIVE_RATING_THRESHOLD, "label"] = 1
     data.loc[data["rating"] <= 2, "label"] = 0
     return data
+
 
 def movie_feature_table(raw_data_dir: Path = config.RAW_DATA_DIR) -> pd.DataFrame:
     """Return one row per movie with static movie metadata."""

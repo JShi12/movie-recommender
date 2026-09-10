@@ -89,7 +89,8 @@ def create_ranking_pipeline(
             str(candidates_per_user),
             "--batch-size",
             str(batch_size),
-        ] + retrieval_artifact_args,
+        ]
+        + retrieval_artifact_args,
     )
 
     train_ranker = _module_op(
@@ -146,7 +147,8 @@ def create_ranking_pipeline(
             str(batch_size),
             "--raw-data-dir",
             raw_data_dir,
-        ] + retrieval_artifact_args,
+        ]
+        + retrieval_artifact_args,
     ).after(train_ranker)
 
     push_ranker = _module_op(

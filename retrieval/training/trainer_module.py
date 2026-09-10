@@ -31,13 +31,13 @@ try:
     )
 except ImportError:
     # Keep the TFX module loadable when executed from a copied module file.
-    USER_ID_KEY = 'user_id'
-    MOVIE_ID_KEY = 'movie_id'
-    AGE_KEY = 'age'
-    GENDER_KEY = 'gender'
-    OCCUPATION_KEY = 'occupation'
-    GENRES_KEY = 'genres'
-    LABEL_KEY = 'label'
+    USER_ID_KEY = "user_id"
+    MOVIE_ID_KEY = "movie_id"
+    AGE_KEY = "age"
+    GENDER_KEY = "gender"
+    OCCUPATION_KEY = "occupation"
+    GENRES_KEY = "genres"
+    LABEL_KEY = "label"
     USER_FEATURE_KEYS = [USER_ID_KEY, AGE_KEY, GENDER_KEY, OCCUPATION_KEY]
     MOVIE_FEATURE_KEYS = [MOVIE_ID_KEY, GENRES_KEY]
 
@@ -46,34 +46,34 @@ AGE_BUCKETS = 6
 
 # Tunable defaults. The source of truth is retrieval/config.py; fallback values
 # keep this TFX module loadable if a runner copies only trainer_module.py.
-BATCH_SIZE = _config_value('BATCH_SIZE', 64)
-EPOCHS = _config_value('EPOCHS', 10)
-EARLY_STOPPING_PATIENCE = _config_value('EARLY_STOPPING_PATIENCE', 3)
-LEARNING_RATE = _config_value('LEARNING_RATE', 0.001)
-DROPOUT_RATE = _config_value('DROPOUT_RATE', 0.30)
-L2_REGULARIZATION = _config_value('L2_REGULARIZATION', 1e-6)
-USER_EMBEDDING_DIM = _config_value('USER_EMBEDDING_DIM', 32)
-MOVIE_EMBEDDING_DIM = _config_value('MOVIE_EMBEDDING_DIM', 32)
-AGE_EMBEDDING_DIM = _config_value('AGE_EMBEDDING_DIM', 8)
-GENDER_EMBEDDING_DIM = _config_value('GENDER_EMBEDDING_DIM', 4)
-OCCUPATION_EMBEDDING_DIM = _config_value('OCCUPATION_EMBEDDING_DIM', 12)
-GENRE_EMBEDDING_DIM = _config_value('GENRE_EMBEDDING_DIM', 12)
-FINAL_EMBEDDING_DIM = _config_value('FINAL_EMBEDDING_DIM', 32)
+BATCH_SIZE = _config_value("BATCH_SIZE", 64)
+EPOCHS = _config_value("EPOCHS", 10)
+EARLY_STOPPING_PATIENCE = _config_value("EARLY_STOPPING_PATIENCE", 3)
+LEARNING_RATE = _config_value("LEARNING_RATE", 0.001)
+DROPOUT_RATE = _config_value("DROPOUT_RATE", 0.30)
+L2_REGULARIZATION = _config_value("L2_REGULARIZATION", 1e-6)
+USER_EMBEDDING_DIM = _config_value("USER_EMBEDDING_DIM", 32)
+MOVIE_EMBEDDING_DIM = _config_value("MOVIE_EMBEDDING_DIM", 32)
+AGE_EMBEDDING_DIM = _config_value("AGE_EMBEDDING_DIM", 8)
+GENDER_EMBEDDING_DIM = _config_value("GENDER_EMBEDDING_DIM", 4)
+OCCUPATION_EMBEDDING_DIM = _config_value("OCCUPATION_EMBEDDING_DIM", 12)
+GENRE_EMBEDDING_DIM = _config_value("GENRE_EMBEDDING_DIM", 12)
+FINAL_EMBEDDING_DIM = _config_value("FINAL_EMBEDDING_DIM", 32)
 
 # Trainer custom_config keys.
-BATCH_SIZE_KEY = 'batch_size'
-EPOCHS_KEY = 'epochs'
-EARLY_STOPPING_PATIENCE_KEY = 'early_stopping_patience'
-LEARNING_RATE_KEY = 'learning_rate'
-DROPOUT_RATE_KEY = 'dropout_rate'
-L2_REGULARIZATION_KEY = 'l2_regularization'
-USER_EMBEDDING_DIM_KEY = 'user_embedding_dim'
-MOVIE_EMBEDDING_DIM_KEY = 'movie_embedding_dim'
-AGE_EMBEDDING_DIM_KEY = 'age_embedding_dim'
-GENDER_EMBEDDING_DIM_KEY = 'gender_embedding_dim'
-OCCUPATION_EMBEDDING_DIM_KEY = 'occupation_embedding_dim'
-GENRE_EMBEDDING_DIM_KEY = 'genre_embedding_dim'
-FINAL_EMBEDDING_DIM_KEY = 'final_embedding_dim'
+BATCH_SIZE_KEY = "batch_size"
+EPOCHS_KEY = "epochs"
+EARLY_STOPPING_PATIENCE_KEY = "early_stopping_patience"
+LEARNING_RATE_KEY = "learning_rate"
+DROPOUT_RATE_KEY = "dropout_rate"
+L2_REGULARIZATION_KEY = "l2_regularization"
+USER_EMBEDDING_DIM_KEY = "user_embedding_dim"
+MOVIE_EMBEDDING_DIM_KEY = "movie_embedding_dim"
+AGE_EMBEDDING_DIM_KEY = "age_embedding_dim"
+GENDER_EMBEDDING_DIM_KEY = "gender_embedding_dim"
+OCCUPATION_EMBEDDING_DIM_KEY = "occupation_embedding_dim"
+GENRE_EMBEDDING_DIM_KEY = "genre_embedding_dim"
+FINAL_EMBEDDING_DIM_KEY = "final_embedding_dim"
 
 
 def _as_int(value, default):
@@ -96,11 +96,9 @@ def _input_fn(file_pattern, tf_transform_output, batch_size=32, num_epochs=None)
         file_pattern=file_pattern,
         batch_size=batch_size,
         features=transformed_feature_spec,
-        reader=lambda filenames: tf.data.TFRecordDataset(
-            filenames, compression_type='GZIP'
-        ),
+        reader=lambda filenames: tf.data.TFRecordDataset(filenames, compression_type="GZIP"),
         label_key=LABEL_KEY,
-        num_epochs=num_epochs, # None: repeat indefinitely
+        num_epochs=num_epochs,  # None: repeat indefinitely
     )
 
     return dataset
@@ -147,29 +145,29 @@ def build_two_tower_model(
     user_embedding = layers.Embedding(
         input_dim=user_vocab_size + 1,
         output_dim=user_embedding_dim,
-        name='user_embedding',
-        embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization)
+        name="user_embedding",
+        embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization),
     )(user_id_input)
     user_embedding = layers.Flatten()(user_embedding)
 
     age_embedding = layers.Embedding(
         input_dim=AGE_BUCKETS + 1,
         output_dim=age_embedding_dim,
-        name='age_embedding',
+        name="age_embedding",
     )(age_input)
     age_embedding = layers.Flatten()(age_embedding)
 
     gender_embedding = layers.Embedding(
         input_dim=gender_vocab_size + 1,
         output_dim=gender_embedding_dim,
-        name='gender_embedding',
+        name="gender_embedding",
     )(gender_input)
     gender_embedding = layers.Flatten()(gender_embedding)
 
     occupation_embedding = layers.Embedding(
         input_dim=occupation_vocab_size + 1,
         output_dim=occupation_embedding_dim,
-        name='occupation_embedding',
+        name="occupation_embedding",
     )(occupation_input)
     occupation_embedding = layers.Flatten()(occupation_embedding)
 
@@ -181,34 +179,34 @@ def build_two_tower_model(
 
     user_vector = layers.Dense(
         final_embedding_dim,
-        activation='relu',
-        name='user_tower',
+        activation="relu",
+        name="user_tower",
     )(user_features)
     user_vector = layers.Lambda(
         lambda x: tf.nn.l2_normalize(x, axis=1),
-        name='user_embedding_output',
+        name="user_embedding_output",
     )(user_vector)
 
     # ===== MOVIE TOWER =====
     movie_embedding = layers.Embedding(
         input_dim=movie_vocab_size + 1,
         output_dim=movie_embedding_dim,
-        name='movie_embedding',
-        embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization)
+        name="movie_embedding",
+        embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization),
     )(movie_id_input)
     movie_embedding = layers.Flatten()(movie_embedding)
 
     # Genres are already transformed into integer ids; normalize to ragged.
     genre_ragged = layers.Lambda(
         _to_genre_ragged,
-        name='genre_to_ragged',
+        name="genre_to_ragged",
     )(genres_input)
 
     genre_embeddings = layers.Embedding(
         input_dim=genre_vocab_size + 1,
         output_dim=genre_embedding_dim,
-        name='genre_embedding',
-        embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization)
+        name="genre_embedding",
+        embeddings_regularizer=tf.keras.regularizers.l2(l2_regularization),
     )(genre_ragged)
 
     genre_features = layers.Lambda(
@@ -216,7 +214,7 @@ def build_two_tower_model(
             tf.reduce_sum(x, axis=1),
             tf.cast(tf.expand_dims(x.row_lengths(), axis=1), x.dtype),
         ),
-        name='genre_average_pooling',
+        name="genre_average_pooling",
     )(genre_embeddings)
 
     movie_features = layers.Concatenate()([movie_embedding, genre_features])
@@ -224,21 +222,21 @@ def build_two_tower_model(
 
     movie_vector = layers.Dense(
         final_embedding_dim,
-        activation='relu',
-        name='movie_tower',
+        activation="relu",
+        name="movie_tower",
     )(movie_features)
     movie_vector = layers.Lambda(
         lambda x: tf.nn.l2_normalize(x, axis=1),
-        name='movie_embedding_output',
+        name="movie_embedding_output",
     )(movie_vector)
 
     # ===== INTERACTION: DOT PRODUCT =====
-    dot_product = layers.Dot(axes=1, name='dot_product')([user_vector, movie_vector])
+    dot_product = layers.Dot(axes=1, name="dot_product")([user_vector, movie_vector])
     scaled_dot_product = layers.Lambda(
         lambda x: x * 5.0,
-        name='scaled_dot_product',
+        name="scaled_dot_product",
     )(dot_product)
-    output = layers.Activation('sigmoid', name='output')(scaled_dot_product)
+    output = layers.Activation("sigmoid", name="output")(scaled_dot_product)
 
     model = keras.Model(
         inputs={
@@ -250,7 +248,7 @@ def build_two_tower_model(
             GENRES_KEY: genres_input,
         },
         outputs=output,
-        name='two_tower_recommender',
+        name="two_tower_recommender",
     )
     model.user_embedding_model = keras.Model(
         inputs={
@@ -260,7 +258,7 @@ def build_two_tower_model(
             OCCUPATION_KEY: occupation_input,
         },
         outputs=user_vector,
-        name='user_embedding_model',
+        name="user_embedding_model",
     )
     model.movie_embedding_model = keras.Model(
         inputs={
@@ -268,15 +266,15 @@ def build_two_tower_model(
             GENRES_KEY: genres_input,
         },
         outputs=movie_vector,
-        name='movie_embedding_model',
+        name="movie_embedding_model",
     )
 
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-        loss='binary_crossentropy',
+        loss="binary_crossentropy",
         metrics=[
-            keras.metrics.AUC(name='auc'),
-            keras.metrics.Recall(name='recall'),
+            keras.metrics.AUC(name="auc"),
+            keras.metrics.Recall(name="recall"),
         ],
     )
 
@@ -287,7 +285,7 @@ def run_fn(fn_args: FnArgs):
     """TFX Trainer run_fn."""
 
     tf_transform_output = tft.TFTransformOutput(fn_args.transform_output)
-    custom_config = getattr(fn_args, 'custom_config', None) or {}
+    custom_config = getattr(fn_args, "custom_config", None) or {}
     batch_size = _as_int(custom_config.get(BATCH_SIZE_KEY), BATCH_SIZE)
     epochs = _as_int(custom_config.get(EPOCHS_KEY), EPOCHS)
     early_stopping_patience = _as_int(
@@ -364,16 +362,16 @@ def run_fn(fn_args: FnArgs):
         learning_rate=learning_rate,
     )
 
-    print('=' * 80)
-    print('MODEL ARCHITECTURE')
-    print('=' * 80)
-    print('Genre pooling mode: average pooling')
+    print("=" * 80)
+    print("MODEL ARCHITECTURE")
+    print("=" * 80)
+    print("Genre pooling mode: average pooling")
     print(
-        'Hyperparameters: '
-        f'batch_size={batch_size}, epochs={epochs}, learning_rate={learning_rate}, '
-        f'dropout_rate={dropout_rate}, l2_regularization={l2_regularization}, '
-        f'user_dim={user_embedding_dim}, movie_dim={movie_embedding_dim}, '
-        f'genre_dim={genre_embedding_dim}, final_dim={final_embedding_dim}'
+        "Hyperparameters: "
+        f"batch_size={batch_size}, epochs={epochs}, learning_rate={learning_rate}, "
+        f"dropout_rate={dropout_rate}, l2_regularization={l2_regularization}, "
+        f"user_dim={user_embedding_dim}, movie_dim={movie_embedding_dim}, "
+        f"genre_dim={genre_embedding_dim}, final_dim={final_embedding_dim}"
     )
     model.summary()
 
@@ -385,16 +383,16 @@ def run_fn(fn_args: FnArgs):
         epochs=epochs,
         callbacks=[
             keras.callbacks.EarlyStopping(
-                monitor='val_auc',
+                monitor="val_auc",
                 patience=early_stopping_patience,
                 restore_best_weights=True,
-                mode='max',
+                mode="max",
             ),
             keras.callbacks.ReduceLROnPlateau(
-                monitor='val_auc',
+                monitor="val_auc",
                 factor=0.5,
                 patience=1,
-                mode='max',
+                mode="max",
                 min_lr=1e-6,
             ),
             keras.callbacks.TensorBoard(log_dir=fn_args.model_run_dir),
@@ -403,14 +401,8 @@ def run_fn(fn_args: FnArgs):
 
     transformed_feature_spec = tf_transform_output.transformed_feature_spec().copy()
     transformed_feature_spec.pop(LABEL_KEY, None)
-    user_feature_spec = {
-        key: transformed_feature_spec[key]
-        for key in USER_FEATURE_KEYS
-    }
-    movie_feature_spec = {
-        key: transformed_feature_spec[key]
-        for key in MOVIE_FEATURE_KEYS
-    }
+    user_feature_spec = {key: transformed_feature_spec[key] for key in USER_FEATURE_KEYS}
+    movie_feature_spec = {key: transformed_feature_spec[key] for key in MOVIE_FEATURE_KEYS}
 
     def _parse_transformed_examples(serialized_examples, feature_spec, dense_keys):
         parsed = tf.io.parse_example(serialized_examples, feature_spec)
@@ -423,7 +415,7 @@ def run_fn(fn_args: FnArgs):
         return parsed
 
     # Explicit signatures accept serialized transformed tf.Example payloads.
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")])
     def serving_default(serialized_examples):
         parsed = _parse_transformed_examples(
             serialized_examples,
@@ -432,9 +424,9 @@ def run_fn(fn_args: FnArgs):
         )
 
         outputs = model(parsed, training=False)
-        return {'outputs': outputs}
+        return {"outputs": outputs}
 
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")])
     def user_embedding(serialized_examples):
         parsed = _parse_transformed_examples(
             serialized_examples,
@@ -448,9 +440,9 @@ def run_fn(fn_args: FnArgs):
             OCCUPATION_KEY: parsed[OCCUPATION_KEY],
         }
         outputs = model.user_embedding_model(user_inputs, training=False)
-        return {'user_embedding': outputs}
+        return {"user_embedding": outputs}
 
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name='examples')])
+    @tf.function(input_signature=[tf.TensorSpec(shape=[None], dtype=tf.string, name="examples")])
     def movie_embedding(serialized_examples):
         parsed = _parse_transformed_examples(
             serialized_examples,
@@ -462,15 +454,15 @@ def run_fn(fn_args: FnArgs):
             GENRES_KEY: parsed[GENRES_KEY],
         }
         outputs = model.movie_embedding_model(movie_inputs, training=False)
-        return {'movie_embedding': outputs}
+        return {"movie_embedding": outputs}
 
     tf.saved_model.save(
         model,
         fn_args.serving_model_dir,
         signatures={
-            'serving_default': serving_default,
-            'user_embedding': user_embedding,
-            'movie_embedding': movie_embedding,
+            "serving_default": serving_default,
+            "user_embedding": user_embedding,
+            "movie_embedding": movie_embedding,
         },
     )
-    print(f'Model saved to {fn_args.serving_model_dir}')
+    print(f"Model saved to {fn_args.serving_model_dir}")

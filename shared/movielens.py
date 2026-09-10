@@ -9,7 +9,6 @@ import pandas as pd
 
 from shared import config
 
-
 GENRE_COLUMNS = [
     "unknown",
     "Action",
