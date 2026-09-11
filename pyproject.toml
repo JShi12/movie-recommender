@@ -27,6 +27,15 @@ dependencies = [
 [project.optional-dependencies]
 # Full TFX 1.14 retrieval pipeline. TFX 1.14 does not support Python 3.11+,
 # so install this extra under Python 3.9 or 3.10 only.
+#
+# Every package here is pinned to the exact version in requirements.txt (the
+# author's proven-working lock), INCLUDING the ones that overlap with the core
+# `dependencies` above (numpy, pandas, scipy, scikit-learn, lightgbm, joblib,
+# pyarrow). Leaving those to the core deps' loose ranges makes pip's resolver
+# re-derive a compatible set across TFX's transitive constraints from scratch,
+# which can pathologically backtrack for hours; pinning them removes the
+# ambiguity and lets pip use the known-good versions directly. Keep this list
+# in sync with requirements.txt.
 pipeline = [
     "tfx==1.14.0",
     "tensorflow==2.13.0",
@@ -37,11 +46,26 @@ pipeline = [
     "tfx-bsl==1.14.0",
     "ml-metadata==1.14.0",
     "ml-pipelines-sdk==1.14.0",
+    "tensorflow-serving-api==2.13.0",
     "apache-beam==2.47.0",
     "kfp==1.8.22",
-    "protobuf<4",
+    "attrs==21.4.0",
+    "packaging==20.9",
+    "kubernetes==12.0.1",
+    "google-apitools==0.5.31",
+    "google-cloud-aiplatform==1.36.4",
+    "google-cloud-bigquery==2.34.4",
     "keras-tuner==1.4.7",
+    "tensorflow-hub==0.13.0",
     "pyfarmhash==0.3.2",
+    # Core-overlapping packages, pinned to match requirements.txt exactly.
+    "pandas==1.5.3",
+    "numpy==1.24.3",
+    "scipy==1.10.1",
+    "scikit-learn==1.2.2",
+    "lightgbm==4.3.0",
+    "joblib==1.3.2",
+    "pyarrow==10.0.1",
 ]
 
 # FastAPI inference service. The demo serves from precomputed tower embeddings +
