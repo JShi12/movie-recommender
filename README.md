@@ -3,6 +3,10 @@
 [![CI](https://github.com/JShi12/movie-recommender/actions/workflows/ci.yml/badge.svg)](https://github.com/JShi12/movie-recommender/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.9%E2%80%933.11-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![Live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://movie-recommender-xnca.onrender.com/)
+
+**Live demo: [movie-recommender-xnca.onrender.com](https://movie-recommender-xnca.onrender.com/)**
+(free tier — sleeps after ~15 min idle, first load can take 30-60s to wake up)
 
 A production-shaped **retrieval → ranking** recommender on MovieLens 100k:
 
@@ -74,6 +78,9 @@ Reranking lifts nDCG@10 from **0.16** (retrieval order) to **0.20**, and candida
 AUC to **0.80**.
 
 ## Quickstart
+
+Try it live: **[movie-recommender-xnca.onrender.com](https://movie-recommender-xnca.onrender.com/)**.
+To run it yourself:
 
 ```bash
 make setup      # pip install -e ".[dev,serve,ui]" + pre-commit  (Python 3.9+)
