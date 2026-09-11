@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
 
-from serving.app import app, get_recommender
+pytest.importorskip("fastapi", reason="the [serve] extra (fastapi) is not installed")
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from serving.app import app, get_recommender  # noqa: E402
 
 
 @pytest.fixture
