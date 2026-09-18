@@ -19,7 +19,7 @@ st.title("🎬 MovieLens two-stage recommender")
 st.caption("Retrieval (ANN over two-tower embeddings) → ranking (LightGBM LambdaRank)")
 
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, max_entries=100)
 def api_get(path: str) -> dict:
     resp = requests.get(f"{API_URL}{path}", timeout=30)
     resp.raise_for_status()
