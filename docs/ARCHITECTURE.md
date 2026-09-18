@@ -106,3 +106,23 @@ GET /recommend/{user_id}
 `serving/app.py` loads the bundle once at startup (`lru_cache`d dependency) and fails
 fast if it is missing. `docker-compose.yml` runs the API and the Streamlit UI from one
 image.
+
+### Deploying the two processes separately
+
+`ui/app.py` is a thin HTTP client (`streamlit`, `pandas`, `requests` only) — it never
+imports `fastapi`/`numpy`/`scikit-learn`/`lightgbm`, so it does not need the API's
+Docker image or its dependency footprint. On a host that only exposes one process's
+memory per instance (e.g. two free Render web services), run:
+
+- **API** — `serving/Dockerfile`, start command `uvicorn serving.app:app --host 0.0.0.0 --port $PORT`.
+- **UI** — either the same Docker image with start command
+  `streamlit run ui/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true`,
+  or a slim native-runtime deploy using `ui/requirements.txt` (build command
+  `pip install -r ui/requirements.txt`) with the same start command — smaller image,
+  faster build, identical runtime memory either way since only imported packages
+  consume RAM. Both need `API_URL` set to the API service's URL.
+
+`serving/start.sh` bundles both processes into a single container (API backgrounded
+and private on `127.0.0.1:8000`, Streamlit foregrounded and public) for hosts that only
+allow one process/instance — note this halves the memory available to each process
+compared to deploying them separately.

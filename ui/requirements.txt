@@ -1,0 +1,6 @@
+# Minimal deps for the Streamlit demo UI only — it's a thin HTTP client for the
+# API, so it deliberately does NOT need fastapi/numpy/scipy/scikit-learn/lightgbm.
+# Used for slim (non-Docker) native-runtime deploys; see docs/ARCHITECTURE.md.
+streamlit>=1.30
+pandas>=1.5,<3.0
+requests>=2.31
