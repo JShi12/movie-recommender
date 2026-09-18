@@ -3,9 +3,9 @@
 [![CI](https://github.com/JShi12/movie-recommender/actions/workflows/ci.yml/badge.svg)](https://github.com/JShi12/movie-recommender/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.9%E2%80%933.11-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-[![Live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://movie-recommender-xnca.onrender.com/)
+[![Live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://movie-recommender-ui-mvs3.onrender.com/)
 
-**Live demo: [movie-recommender-xnca.onrender.com](https://movie-recommender-xnca.onrender.com/)**
+**Live demo: [movie-recommender-ui-mvs3.onrender.com](https://movie-recommender-ui-mvs3.onrender.com/)**
 (free tier — sleeps after ~15 min idle, first load can take 30-60s to wake up)
 
 A production-shaped **retrieval → ranking** recommender on MovieLens 100k:
@@ -79,7 +79,7 @@ AUC to **0.80**.
 
 ## Quickstart
 
-Try it live: **[movie-recommender-xnca.onrender.com](https://movie-recommender-xnca.onrender.com/)**.
+Try it live: **[movie-recommender-ui-mvs3.onrender.com](https://movie-recommender-ui-mvs3.onrender.com/)**.
 To run it yourself:
 
 ```bash
@@ -118,10 +118,6 @@ make bundle                   # refresh serving/model_bundle/
 ```
 
 ## How it works
-
-**Why two stages.** Scoring every user against the full catalogue with a heavy model
-does not scale. A cheap embedding dot-product (retrieval) narrows 1,682 → ~200; an
-expensive gradient-boosted model (ranking) only has to order those.
 
 **Leakage control.** The split is chronological and a timestamp never straddles a
 partition boundary (`shared.movielens.time_based_split`). Every behavioural feature is
@@ -169,8 +165,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What I'd change at scale
 
-TFX here buys data validation, a single train/serve transform graph, sliced-evaluation
-gating, and MLMD lineage. For a larger system I would swap:
+Using TFX here provides data validation, a single train/serve transform graph, sliced-evaluation gating, and MLMD lineage. For a larger system I would swap:
 
 | Concern | Here | At scale |
 |---|---|---|
